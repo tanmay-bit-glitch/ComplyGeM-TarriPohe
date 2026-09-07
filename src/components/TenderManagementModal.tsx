@@ -14,8 +14,8 @@ export const TenderManagementModal: React.FC<TenderManagementModalProps> = ({
   onSaveTender,
 }) => {
   const [tenderNumber, setTenderNumber] = useState(`GEM/2026/B/${Math.floor(1000 + Math.random() * 9000)}`);
-  const [title, setTitle] = useState('Procurement of IT Infrastructure & Secure Cloud Terminals');
-  const [department, setDepartment] = useState('Ministry of Electronics & Information Technology (MeitY)');
+  const [title, setTitle] = useState('Procurement of Store Supplies & Specialized Equipment');
+  const [department, setDepartment] = useState('Central Armed Police Forces / Ministry of Defence');
   const [estimatedValueCr, setEstimatedValueCr] = useState<number>(3.5);
   const [minimumTurnoverCr, setMinimumTurnoverCr] = useState<number>(1.2);
   const [minimumLocalContent, setMinimumLocalContent] = useState<number>(50);

@@ -30,6 +30,24 @@ export interface AuthUser {
   identifierNumber: string;
   avatarInitials: string;
   lastLogin: string;
+  companyDetails?: {
+    bidderName: string;
+    bidderEmail: string;
+    bidderPhone: string;
+    phone?: string;
+    companyName?: string;
+    panNumber: string;
+    gstinNumber: string;
+    udyamNumber?: string;
+    cinNumber?: string;
+    registeredState: string;
+    enterpriseType: 'MICRO' | 'SMALL' | 'MEDIUM' | 'LARGE' | 'STARTUP';
+    annualTurnover: string;
+    primarySector: string;
+    categoryFocus?: string;
+    defaultLocalContent?: number;
+    defaultTenderId?: string;
+  };
 }
 
 export interface RequiredDocumentSpec {
@@ -46,16 +64,33 @@ export interface RequiredDocumentSpec {
 
 export interface Tender {
   id: string;
-  tenderNumber: string; // e.g. "GEM/2026/B/8941"
+  tenderNumber: string; // e.g. "GEM/2026/B/7841288"
   title: string;
   category: string;
-  department: string; // e.g. "Ministry of Electronics and Information Technology"
+  department: string;
+  ministry?: string;
+  organisation?: string;
+  officeName?: string;
+  dated?: string;
   closingDate: string;
+  openingDate?: string;
+  bidOfferValidityDays?: number;
+  totalQuantity?: number | string;
   estimatedValueINR: number;
   minimumTurnoverINR: number;
+  oemTurnoverINR?: number;
+  yearsPastExperience?: number;
+  pastPerformancePercent?: number;
+  emdAmountINR?: number;
+  epbgPercentage?: number;
+  epbgDurationMonths?: number;
+  beneficiary?: string;
+  consignee?: string;
+  deliveryDays?: number;
   minimumLocalContentPercent: number;
   isMsePreferenceApplicable: boolean;
   isStartupExemptionApplicable: boolean;
+  isMiiReserved?: boolean;
   requiredDocuments: RequiredDocumentSpec[];
   status: 'ACTIVE' | 'EVALUATION' | 'CLOSED';
 }
@@ -75,12 +110,28 @@ export interface ExtractedDocData {
   localContentPercentage?: number;
   turnoverValueINR?: number;
   rawExtractedText: string;
+  importantClauses?: string[]; // Important clauses extracted from document text by Sarvam
   aiAuthenticityScore: number; // 0-100
   aiObservations: string[];
   flags: string[];
+  isValidDocument?: boolean; // false if image is a selfie, personal photo, random object, non-document
+  isExpectedDocumentType?: boolean; // false if document is of wrong category
+  isEntityNameMatch?: boolean; // false if document was issued to a different company or bidder
+  declaredBidderName?: string; // Declared bidder name for cross-check
+  rejectionReason?: string; // Clear user-facing reason if rejected or flagged
+  detectedTypeDescription?: string; // e.g. "Personal Selfie / Photograph" or "Form GST REG-06"
+  verificationStatus?: VerificationStatus;
   aiEngine?: 'SARVAM_AI' | 'GEMINI_AI' | 'STATUTORY_ENGINE';
   aiEngineModel?: string; // e.g., "sarvam-105b (Sarvam AI Indic Sovereign)"
   indicScriptDetected?: string; // e.g., "Devanagari & Latin"
+}
+
+export interface DatabaseFieldComparison {
+  field: string;
+  extractedFromDoc: string;
+  databaseMasterValue: string;
+  match: boolean;
+  notes?: string;
 }
 
 export interface DepartmentApiResult {
@@ -91,8 +142,12 @@ export interface DepartmentApiResult {
   queryTimestamp: string;
   status: 'MATCHED' | 'MISMATCH' | 'NOT_FOUND' | 'DEBARRED' | 'SUSPENDED';
   verifiedAttributes: Record<string, string | number | boolean>;
+  extractedTextSent?: string; // Important text extracted by Sarvam sent to the department API
+  databaseRecord?: Record<string, any>; // Master database record retrieved from department
+  fieldComparisons?: DatabaseFieldComparison[]; // Field-by-field verification cross-match
   apiReferenceId: string;
   statusMessage: string;
+  verifiedAt?: string;
 }
 
 export interface RuleEvaluationItem {

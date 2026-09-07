@@ -16,17 +16,14 @@ import {
   FileText, 
   Clock, 
   Eye, 
-  Plus, 
   Download, 
   Building2, 
-  TrendingUp,
-  Sparkles
+  TrendingUp
 } from 'lucide-react';
 
 interface OfficerDashboardProps {
   tenders: Tender[];
   submissions: BidderSubmission[];
-  onOpenTenderModal: () => void;
   onRecordOfficerDecision: (
     submissionId: string, 
     decision: BidderDecision, 
@@ -38,7 +35,6 @@ interface OfficerDashboardProps {
 export const OfficerDashboard: React.FC<OfficerDashboardProps> = ({
   tenders,
   submissions,
-  onOpenTenderModal,
   onRecordOfficerDecision,
   language,
 }) => {
@@ -72,30 +68,7 @@ export const OfficerDashboard: React.FC<OfficerDashboardProps> = ({
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
-      {/* 1. Official Officer Banner */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-slate-900">
-            Bidder Verification Console
-          </h2>
-          <p className="text-sm text-slate-500 mt-1">
-            Real-time multi-portal verification, signature authenticity scoring, and statutory rule audit trail.
-          </p>
-        </div>
-
-        <div className="flex items-center space-x-3">
-          <button
-            id="create-new-tender-btn"
-            onClick={onOpenTenderModal}
-            className="px-4 py-2 bg-[#002B5B] hover:bg-[#003875] text-white font-medium text-sm rounded-lg shadow-sm transition-all flex items-center space-x-2"
-          >
-            <Plus className="w-4 h-4 text-[#F27D26]" />
-            <span>Configure New Tender Checklist</span>
-          </button>
-        </div>
-      </div>
-
-      {/* 2. System Status & Metric Cards */}
+      {/* System Status & Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Metric 1: Total Bids */}
         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
@@ -154,50 +127,6 @@ export const OfficerDashboard: React.FC<OfficerDashboardProps> = ({
         </div>
       </div>
 
-      {/* System Health Strip (from Professional Polish theme) */}
-      <div className="bg-slate-900 rounded-xl p-4 text-white shadow-md border border-slate-800 flex flex-col md:flex-row items-center justify-between gap-4">
-        <div className="flex items-center space-x-3">
-          <div className="w-9 h-9 rounded-lg bg-blue-900/60 border border-blue-700/60 flex items-center justify-center text-blue-300">
-            <Sparkles className="w-5 h-5 text-amber-400" />
-          </div>
-          <div>
-            <div className="flex items-center space-x-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-300">
-                Verification Gateway & AI Engine Health
-              </span>
-              <span className="bg-green-500/20 text-green-400 border border-green-500/30 text-[10px] font-bold px-2 py-0.2 rounded-full">
-                OPERATIONAL
-              </span>
-            </div>
-            <p className="text-[11px] text-slate-400">
-              Udyam MSME Databank • GSTN e-Filing • Income Tax CBDT • CPPP Debarment Registry
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-6 w-full md:w-auto">
-          <div className="w-full md:w-44">
-            <div className="flex justify-between items-center text-[10px] text-white mb-1">
-              <span className="text-slate-400">AI OCR Precision</span>
-              <span className="text-green-400 font-mono font-bold">99.2%</span>
-            </div>
-            <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
-              <div className="bg-green-500 h-1.5 rounded-full" style={{ width: '99.2%' }}></div>
-            </div>
-          </div>
-
-          <div className="w-full md:w-44">
-            <div className="flex justify-between items-center text-[10px] text-white mb-1">
-              <span className="text-slate-400">Statutory API Uptime</span>
-              <span className="text-green-400 font-mono font-bold">100%</span>
-            </div>
-            <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
-              <div className="bg-blue-500 h-1.5 rounded-full" style={{ width: '100%' }}></div>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* 3. Filters & Search Bar */}
       <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row items-center justify-between gap-3">
         {/* Search */}
@@ -219,12 +148,12 @@ export const OfficerDashboard: React.FC<OfficerDashboardProps> = ({
           <select
             value={selectedTenderFilter}
             onChange={e => setSelectedTenderFilter(e.target.value)}
-            className="bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-700 focus:ring-2 focus:ring-blue-600 focus:outline-hidden"
+            className="bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-700 focus:ring-2 focus:ring-blue-600 focus:outline-hidden max-w-[260px] truncate"
           >
             <option value="ALL">All Tenders ({tenders.length})</option>
             {tenders.map(t => (
               <option key={t.id} value={t.id}>
-                {t.tenderNumber}
+                {t.tenderNumber} - {t.organisation || t.department}
               </option>
             ))}
           </select>
@@ -294,8 +223,20 @@ export const OfficerDashboard: React.FC<OfficerDashboardProps> = ({
             <tbody className="divide-y divide-slate-100 text-sm">
               {filteredSubmissions.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-8 text-center text-slate-500">
-                    No submissions found matching selected filters.
+                  <td colSpan={7} className="py-14 text-center">
+                    <div className="max-w-md mx-auto text-center px-4">
+                      <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-3 text-slate-400">
+                        <FileText className="w-6 h-6" />
+                      </div>
+                      <h4 className="text-sm font-bold text-slate-800">
+                        {submissions.length === 0 ? 'No Bidder Submission Records' : 'No Matching Submissions'}
+                      </h4>
+                      <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                        {submissions.length === 0 
+                          ? 'All previous submission records have been cleared. When registered bidders submit technical proposals through the Bidder Portal, verified scorecards and compliance evaluations will appear here automatically.' 
+                          : 'No submissions found matching your search term or active category filters. Try resetting the filter criteria.'}
+                      </p>
+                    </div>
                   </td>
                 </tr>
               ) : (
@@ -320,8 +261,16 @@ export const OfficerDashboard: React.FC<OfficerDashboardProps> = ({
                       </td>
 
                       {/* Tender Ref */}
-                      <td className="py-4 px-6 font-mono text-slate-700 font-semibold text-xs">
-                        {sub.tenderNumber}
+                      <td className="py-4 px-6 text-xs">
+                        <div className="font-mono text-slate-800 font-bold">{sub.tenderNumber}</div>
+                        {(() => {
+                          const matchedTender = tenders.find(t => t.id === sub.tenderId || t.tenderNumber === sub.tenderNumber);
+                          return matchedTender ? (
+                            <div className="text-[11px] font-sans font-medium text-slate-500 truncate max-w-[160px]" title={matchedTender.title}>
+                              {matchedTender.organisation || matchedTender.department}
+                            </div>
+                          ) : null;
+                        })()}
                       </td>
 
                       {/* Statutory Identifiers */}

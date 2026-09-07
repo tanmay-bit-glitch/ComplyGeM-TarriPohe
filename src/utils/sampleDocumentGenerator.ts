@@ -3,7 +3,7 @@ export function generateSampleDocumentDataUrl(
   type: string,
   entityName: string,
   docNumber: string,
-  extra?: { localContent?: number; status?: string }
+  extra?: { localContent?: number; status?: string; tenderNumber?: string }
 ): string {
   const width = 600;
   const height = 800;
@@ -79,7 +79,7 @@ export function generateSampleDocumentDataUrl(
     bodyLines = [
       `OEM AUTHORIZATION ID: ${docNumber}`,
       `AUTHORIZED PARTNER: ${entityName}`,
-      `AUTHORIZATION SCOPE: GeM TENDER GEM/2026/B/8941`,
+      `AUTHORIZATION SCOPE: GeM TENDER ${extra?.tenderNumber || 'GEM/2026/B/7841288'}`,
       `WARRANTY COMMITMENT: 3 YEARS BACK-TO-BACK OEM ONSITE SUPPORT`,
       `PRINCIPAL OEM: SILICON CORP INTERNATIONAL INDIA PVT LTD`,
     ];

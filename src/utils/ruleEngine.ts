@@ -28,12 +28,28 @@ export function evaluateBidCompliance(
   const mandatoryDocs = reqDocs.filter(d => d.isMandatory);
 
   mandatoryDocs.forEach(req => {
-    const found = documents.find(d => d.specId === req.id || d.documentType === req.type);
+    const found = documents.find(
+      d =>
+        (d.specId === req.id || d.documentType === req.type) &&
+        d.verificationStatus !== 'REJECTED' &&
+        d.extractedData?.isValidDocument !== false
+    );
     if (!found) {
       missingMandatoryDocuments.push(req.title);
     } else {
       presentMandatoryCount++;
     }
+  });
+
+  // Track any rejected documents (personal photos, selfies, non-statutory files)
+  const rejectedDocs = documents.filter(
+    d => d.verificationStatus === 'REJECTED' || d.extractedData?.isValidDocument === false
+  );
+
+  rejectedDocs.forEach(d => {
+    criticalFailures.push(
+      `AI Forensic Rejection: "${d.fileName}" for ${d.documentType} was rejected as a non-statutory image / personal photo.`
+    );
   });
 
   const mandatoryScore = mandatoryDocs.length > 0
@@ -45,12 +61,14 @@ export function evaluateBidCompliance(
     category: 'STATUTORY',
     ruleDescription: 'Mandatory Tender Document Checklist Completeness',
     maxScore: 20,
-    awardedScore: mandatoryScore,
-    status: missingMandatoryDocuments.length === 0 ? 'PASS' : missingMandatoryDocuments.length > 1 ? 'FAIL' : 'WARN',
-    details: missingMandatoryDocuments.length === 0
-      ? `All ${mandatoryDocs.length} required statutory documents submitted.`
+    awardedScore: rejectedDocs.length > 0 ? Math.max(0, mandatoryScore - 10) : mandatoryScore,
+    status: missingMandatoryDocuments.length === 0 && rejectedDocs.length === 0 ? 'PASS' : missingMandatoryDocuments.length > 1 || rejectedDocs.length > 0 ? 'FAIL' : 'WARN',
+    details: rejectedDocs.length > 0
+      ? `CRITICAL FAILURE: ${rejectedDocs.length} uploaded document(s) rejected by AI inspection (${rejectedDocs.map(d => d.fileName).join(', ')}). Valid statutory certificates are required.`
+      : missingMandatoryDocuments.length === 0
+      ? `All ${mandatoryDocs.length} required statutory documents submitted and verified.`
       : `Missing mandatory document(s): ${missingMandatoryDocuments.join(', ')}.`,
-    isCriticalFailure: missingMandatoryDocuments.length >= 2,
+    isCriticalFailure: missingMandatoryDocuments.length >= 2 || rejectedDocs.length > 0,
   });
 
   if (missingMandatoryDocuments.length >= 2) {
@@ -64,7 +82,11 @@ export function evaluateBidCompliance(
   let udyamDetails = '';
   let udyamStatus: 'PASS' | 'WARN' | 'FAIL' = 'PASS';
 
-  if (udyamDoc && udyamDept?.status === 'MATCHED') {
+  if (udyamDoc?.verificationStatus === 'REJECTED' || udyamDoc?.extractedData?.isValidDocument === false) {
+    udyamScore = 0;
+    udyamStatus = 'FAIL';
+    udyamDetails = `CRITICAL: Uploaded MSME file rejected by AI inspection. ${udyamDoc?.extractedData?.rejectionReason || 'Non-statutory photo or invalid certificate.'}`;
+  } else if (udyamDoc && udyamDept?.status === 'MATCHED') {
     udyamScore = 15;
     udyamDetails = `Udyam Registration (${udyamDoc.extractedData?.documentNumber || bidderInfo.udyamNumber}) verified Active via Ministry of MSME API. Qualified for MSE benefits.`;
   } else if (udyamDoc && udyamDoc.extractedData?.signatureDetected) {
@@ -96,7 +118,12 @@ export function evaluateBidCompliance(
   let gstStatus: 'PASS' | 'WARN' | 'FAIL' = 'PASS';
   let gstDetails = '';
 
-  if (gstDept?.status === 'SUSPENDED' || gstDept?.status === 'MISMATCH') {
+  if (gstDoc?.verificationStatus === 'REJECTED' || gstDoc?.extractedData?.isValidDocument === false) {
+    gstScore = 0;
+    gstStatus = 'FAIL';
+    gstDetails = `CRITICAL: Uploaded GST file rejected by AI inspection. ${gstDoc?.extractedData?.rejectionReason || 'Non-statutory photo or invalid certificate.'}`;
+    criticalFailures.push('Mandatory GST Registration certificate was rejected by AI inspection');
+  } else if (gstDept?.status === 'SUSPENDED' || gstDept?.status === 'MISMATCH') {
     gstScore = 0;
     gstStatus = 'FAIL';
     gstDetails = `CRITICAL: GSTN API indicates ${gstDept.status}. Tax compliance verification failed.`;
@@ -131,23 +158,30 @@ export function evaluateBidCompliance(
   let panStatus: 'PASS' | 'WARN' | 'FAIL' = 'PASS';
   let panDetails = '';
 
-  // Cross-check entity names
-  const extractedPanName = panDoc?.extractedData?.entityName?.toLowerCase() || '';
-  const bidderNormalized = bidderInfo.bidderName.toLowerCase().replace(/[^a-z0-9]/g, '');
-  const panNormalized = extractedPanName.replace(/[^a-z0-9]/g, '');
-
-  if (panDoc && panNormalized.length > 3 && !bidderNormalized.includes(panNormalized) && !panNormalized.includes(bidderNormalized)) {
-    panScore = 4;
+  if (panDoc?.verificationStatus === 'REJECTED' || panDoc?.extractedData?.isValidDocument === false) {
+    panScore = 0;
     panStatus = 'FAIL';
-    panDetails = `CRITICAL NAME DISCREPANCY: PAN legal name (${panDoc.extractedData?.entityName}) does not match Bidder Name (${bidderInfo.bidderName}).`;
-    criticalFailures.push('Legal entity name mismatch between Income Tax PAN and Bidder profile');
-  } else if (panDoc) {
-    panScore = 15;
-    panDetails = `PAN ${bidderInfo.panNumber} matches registered legal entity. Active Income Tax e-filing record confirmed.`;
+    panDetails = `CRITICAL: Uploaded PAN file rejected by AI inspection. ${panDoc?.extractedData?.rejectionReason || 'Non-statutory photo or invalid document.'}`;
+    criticalFailures.push('PAN card was rejected by AI inspection as invalid');
   } else {
-    panScore = 5;
-    panStatus = 'WARN';
-    panDetails = `PAN document pending direct verification. Checked against standard GeM tax repository.`;
+    // Cross-check entity names
+    const extractedPanName = panDoc?.extractedData?.entityName?.toLowerCase() || '';
+    const bidderNormalized = bidderInfo.bidderName.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const panNormalized = extractedPanName.replace(/[^a-z0-9]/g, '');
+
+    if (panDoc && panNormalized.length > 3 && !bidderNormalized.includes(panNormalized) && !panNormalized.includes(bidderNormalized)) {
+      panScore = 4;
+      panStatus = 'FAIL';
+      panDetails = `CRITICAL NAME DISCREPANCY: PAN legal name (${panDoc.extractedData?.entityName}) does not match Bidder Name (${bidderInfo.bidderName}).`;
+      criticalFailures.push('Legal entity name mismatch between Income Tax PAN and Bidder profile');
+    } else if (panDoc) {
+      panScore = 15;
+      panDetails = `PAN ${bidderInfo.panNumber} matches registered legal entity. Active Income Tax e-filing record confirmed.`;
+    } else {
+      panScore = 5;
+      panStatus = 'WARN';
+      panDetails = `PAN document pending direct verification. Checked against standard GeM tax repository.`;
+    }
   }
 
   items.push({

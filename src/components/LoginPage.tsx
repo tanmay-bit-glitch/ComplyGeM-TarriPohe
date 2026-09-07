@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { UserRole, AuthUser } from '../types';
-import { DEMO_OFFICER_USER, DEMO_BIDDER_USER } from '../data/mockUsers';
+import { DEMO_OFFICER_USER, DEMO_BIDDER_USERS } from '../data/mockUsers';
 import { 
   ShieldCheck, 
   Building2, 
@@ -10,13 +10,10 @@ import {
   RefreshCw, 
   Eye, 
   EyeOff, 
-  Shield, 
   CheckCircle2, 
   AlertTriangle,
   ArrowRight,
-  Globe,
-  FileCheck,
-  Sparkles
+  Globe
 } from 'lucide-react';
 
 interface LoginPageProps {
@@ -67,22 +64,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({
       setUsername('arvind.rao@gem.gov.in');
       setPassword('GovGem@2026');
     } else {
-      setUsername('bids@bharat-infotech.com');
+      setUsername('tenders@himalayanagro.in');
       setPassword('Bidder@2026');
     }
-  };
-
-  // Quick 1-click login handler
-  const handleQuickLogin = (role: UserRole) => {
-    setIsLoading(true);
-    setTimeout(() => {
-      if (role === 'PROCUREMENT_OFFICER') {
-        onLogin(DEMO_OFFICER_USER);
-      } else {
-        onLogin(DEMO_BIDDER_USER);
-      }
-      setIsLoading(false);
-    }, 400);
   };
 
   // Form submit handler
@@ -125,9 +109,15 @@ export const LoginPage: React.FC<LoginPageProps> = ({
         };
         onLogin(user);
       } else {
+        // Match bidder by email or ID from demo registered bidders
+        const matchedBidder = DEMO_BIDDER_USERS.find(b => 
+          b.email.toLowerCase() === username.trim().toLowerCase() ||
+          b.identifierNumber.toLowerCase() === username.trim().toLowerCase()
+        ) || DEMO_BIDDER_USERS[0];
+
         const user: AuthUser = {
-          ...DEMO_BIDDER_USER,
-          email: username.includes('@') ? username : `${username}@vendor.gem.in`,
+          ...matchedBidder,
+          email: username.includes('@') ? username : matchedBidder.email,
           lastLogin: new Date().toLocaleDateString('en-IN', {
             day: '2-digit',
             month: 'short',
@@ -139,7 +129,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
         onLogin(user);
       }
       setIsLoading(false);
-    }, 500);
+    }, 450);
   };
 
   return (
@@ -239,11 +229,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                     : 'Statutory Bid Compliance Verification & Forensic Examination System'}
                 </p>
               </div>
-            </div>
-
-            <div className="flex items-center space-x-2 text-xs font-semibold text-emerald-300 bg-blue-950/60 border border-blue-800 px-3 py-1 rounded-full">
-              <Shield className="w-3.5 h-3.5 text-emerald-400" />
-              <span>STQC Certified • IT Act 2000 Compliant</span>
             </div>
           </div>
         </div>
@@ -353,27 +338,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 
           {/* Form Content Area */}
           <div className="p-6 sm:p-8">
-            {/* Context Badge for current role */}
-            <div className={`p-3.5 rounded-xl border mb-6 text-xs flex items-center justify-between ${
-              selectedRole === 'PROCUREMENT_OFFICER'
-                ? 'bg-blue-50/70 border-blue-200 text-blue-900'
-                : 'bg-emerald-50/70 border-emerald-200 text-emerald-900'
-            }`}>
-              <div className="flex items-center space-x-2">
-                <span className={`w-2.5 h-2.5 rounded-full ${selectedRole === 'PROCUREMENT_OFFICER' ? 'bg-blue-600' : 'bg-emerald-600'}`}></span>
-                <span className="font-bold">
-                  {selectedRole === 'PROCUREMENT_OFFICER'
-                    ? (language === 'HI' ? 'सत्यापन अधिकारी पोर्टल (Officer Portal)' : 'Officer Evaluation & Disqualification Console')
-                    : (language === 'HI' ? 'विक्रेता बोली पोर्टल (Bidder Submission Portal)' : 'Vendor Document Verification & Submission Console')}
-                </span>
-              </div>
-              <span className="text-[11px] font-medium opacity-80 hidden sm:inline">
-                {selectedRole === 'PROCUREMENT_OFFICER'
-                  ? 'Confidential Evaluation Workspace'
-                  : 'Statutory Verification Workspace'}
-              </span>
-            </div>
-
             {/* Error Banner */}
             {errorMessage && (
               <div className="mb-6 p-3 bg-rose-50 border border-rose-200 rounded-lg text-rose-800 text-xs flex items-center space-x-2">
@@ -505,66 +469,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                 </button>
               </div>
             </form>
-
-            {/* Quick Demo Logins Section */}
-            <div className="mt-8 pt-6 border-t border-slate-200">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                  {language === 'HI' ? 'त्वरित डेमो परीक्षण लॉगिन:' : '1-Click Instant Evaluation Logins:'}
-                </span>
-                <span className="text-[11px] text-slate-400">
-                  Click to test isolated role views
-                </span>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {/* Quick Button: Officer */}
-                <button
-                  id="quick-login-officer-btn"
-                  type="button"
-                  onClick={() => handleQuickLogin('PROCUREMENT_OFFICER')}
-                  className="p-3 rounded-xl border border-blue-200 bg-blue-50/60 hover:bg-blue-100 text-left transition-colors flex items-center space-x-3 group"
-                >
-                  <div className="w-8 h-8 rounded-lg bg-[#002B5B] text-white flex items-center justify-center shrink-0 shadow-xs">
-                    <ShieldCheck className="w-4 h-4 text-amber-400" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-bold text-blue-950 truncate group-hover:text-blue-800">
-                      Shri Arvind K. Rao
-                    </p>
-                    <p className="text-[10px] text-blue-800 truncate">
-                      Sr. Procurement Officer (MoCI)
-                    </p>
-                  </div>
-                  <span className="text-[10px] font-bold text-[#002B5B] bg-blue-200/70 px-2 py-0.5 rounded shrink-0">
-                    Officer View
-                  </span>
-                </button>
-
-                {/* Quick Button: Bidder */}
-                <button
-                  id="quick-login-bidder-btn"
-                  type="button"
-                  onClick={() => handleQuickLogin('BIDDER')}
-                  className="p-3 rounded-xl border border-emerald-200 bg-emerald-50/60 hover:bg-emerald-100 text-left transition-colors flex items-center space-x-3 group"
-                >
-                  <div className="w-8 h-8 rounded-lg bg-emerald-700 text-white flex items-center justify-center shrink-0 shadow-xs">
-                    <Building2 className="w-4 h-4 text-emerald-200" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-bold text-emerald-950 truncate group-hover:text-emerald-800">
-                      Bharat Infotech Ltd.
-                    </p>
-                    <p className="text-[10px] text-emerald-800 truncate">
-                      Registered Bidder (Class-I MSE)
-                    </p>
-                  </div>
-                  <span className="text-[10px] font-bold text-emerald-800 bg-emerald-200/70 px-2 py-0.5 rounded shrink-0">
-                    Bidder View
-                  </span>
-                </button>
-              </div>
-            </div>
           </div>
         </div>
       </main>

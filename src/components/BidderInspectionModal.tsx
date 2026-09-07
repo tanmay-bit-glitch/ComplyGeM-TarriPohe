@@ -18,7 +18,11 @@ import {
   Sparkles, 
   Check, 
   Send,
-  Eye
+  Eye,
+  Database,
+  Landmark,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 
 interface BidderInspectionModalProps {
@@ -39,6 +43,7 @@ export const BidderInspectionModal: React.FC<BidderInspectionModalProps> = ({
   onRecordDecision,
 }) => {
   const [selectedDocIndex, setSelectedDocIndex] = useState(0);
+  const [expandedRawText, setExpandedRawText] = useState(false);
   const [activeTab, setActiveTab] = useState<'INSPECTION' | 'SCORECARD' | 'DEPARTMENT_GATEWAYS' | 'DECISION'>('INSPECTION');
   const [decisionAction, setDecisionAction] = useState<BidderDecision>(
     submission.officerDecision !== 'PENDING_REVIEW' ? submission.officerDecision : 'QUALIFIED'
@@ -125,6 +130,18 @@ export const BidderInspectionModal: React.FC<BidderInspectionModalProps> = ({
           >
             <FileText className="w-3.5 h-3.5 text-[#002B5B]" />
             <span>Document Side-by-Side Review ({submission.documents.length})</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('DEPARTMENT_GATEWAYS')}
+            className={`px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center space-x-1.5 ${
+              activeTab === 'DEPARTMENT_GATEWAYS'
+                ? 'bg-white text-[#002B5B] shadow-sm border border-slate-300'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Landmark className="w-3.5 h-3.5 text-blue-700" />
+            <span>Department Gateways & Database APIs</span>
           </button>
 
           <button
@@ -279,19 +296,102 @@ export const BidderInspectionModal: React.FC<BidderInspectionModalProps> = ({
                           )}
                         </div>
 
-                        {/* Government Department Query Gateway Evidence */}
-                        {currentDoc.departmentResult && (
-                          <div className="mt-3 p-3 bg-slate-50 rounded-lg border border-slate-200 text-xs">
-                            <span className="text-[10px] font-bold text-slate-500 uppercase block mb-1">
-                              🏛️ Multi-Portal Gateway Cross-Match
+                        {/* Important Clauses Extracted */}
+                        {currentDoc.extractedData?.importantClauses && currentDoc.extractedData.importantClauses.length > 0 && (
+                          <div className="p-2.5 bg-orange-50/70 rounded-lg border border-orange-200 text-xs">
+                            <span className="text-[10px] font-bold text-orange-950 uppercase tracking-wider block mb-1">
+                              Important Clauses Extracted:
                             </span>
-                            <div className="flex items-center space-x-1.5 text-emerald-800 font-bold mb-1">
-                              <CheckCircle2 className="w-4 h-4" />
-                              <span>{currentDoc.departmentResult.statusMessage}</span>
+                            <ul className="space-y-1">
+                              {currentDoc.extractedData.importantClauses.map((clause, idx) => (
+                                <li key={idx} className="flex items-start space-x-1.5 text-slate-700 text-[11px]">
+                                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
+                                  <span>{clause}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+
+                        {/* Raw Extracted Text Toggle */}
+                        {currentDoc.extractedData?.rawExtractedText && (
+                          <div className="pt-1">
+                            <button
+                              type="button"
+                              onClick={() => setExpandedRawText(!expandedRawText)}
+                              className="text-[11px] font-semibold text-blue-900 hover:text-blue-950 flex items-center space-x-1"
+                            >
+                              <FileText className="w-3 h-3 text-blue-700" />
+                              <span>{expandedRawText ? 'Hide Verbatim Extracted Text' : 'View Full Extracted Text (Sarvam AI)'}</span>
+                              {expandedRawText ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                            </button>
+
+                            {expandedRawText && (
+                              <div className="mt-2 p-2.5 bg-slate-900 text-slate-100 rounded text-[10px] font-mono whitespace-pre-wrap max-h-44 overflow-y-auto leading-relaxed border border-slate-700 shadow-inner">
+                                {currentDoc.extractedData.rawExtractedText}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Government Department Query Gateway Evidence & Field Comparisons */}
+                        {currentDoc.departmentResult && (
+                          <div className="mt-3 p-3 bg-emerald-50/80 rounded-lg border border-emerald-200 text-xs space-y-2">
+                            <div className="flex items-center justify-between border-b border-emerald-200 pb-1.5">
+                              <span className="text-[10px] font-bold text-emerald-950 uppercase flex items-center space-x-1">
+                                <Landmark className="w-3 h-3 text-emerald-700" />
+                                <span>{currentDoc.departmentResult.departmentName}</span>
+                              </span>
+                              <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-200 text-emerald-900 font-bold">
+                                {currentDoc.departmentResult.status}
+                              </span>
                             </div>
-                            <p className="text-[11px] font-mono text-slate-500">
-                              Ref ID: {currentDoc.departmentResult.apiReferenceId}
-                            </p>
+
+                            {/* Field-by-Field Comparison Table */}
+                            {currentDoc.departmentResult.fieldComparisons && currentDoc.departmentResult.fieldComparisons.length > 0 ? (
+                              <div className="overflow-x-auto">
+                                <table className="w-full text-left text-[11px] border-collapse bg-white rounded border border-emerald-200">
+                                  <thead>
+                                    <tr className="bg-emerald-100/70 text-emerald-950 font-bold border-b border-emerald-200 text-[10px]">
+                                      <th className="p-1.5">Field</th>
+                                      <th className="p-1.5">Extracted by Sarvam</th>
+                                      <th className="p-1.5">Dept Database Record</th>
+                                      <th className="p-1.5 text-center">Match</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-emerald-100">
+                                    {currentDoc.departmentResult.fieldComparisons.map((cmp, idx) => (
+                                      <tr key={idx} className="hover:bg-emerald-50/50">
+                                        <td className="p-1.5 font-medium text-slate-700">{cmp.field}</td>
+                                        <td className="p-1.5 font-mono text-slate-900">{cmp.extractedFromDoc}</td>
+                                        <td className="p-1.5 font-mono text-emerald-900 font-bold">{cmp.databaseMasterValue}</td>
+                                        <td className="p-1.5 text-center">
+                                          {cmp.match ? (
+                                            <span className="inline-flex items-center text-emerald-700 font-bold text-[10px]">
+                                              <CheckCircle2 className="w-3 h-3 mr-0.5" /> Match
+                                            </span>
+                                          ) : (
+                                            <span className="inline-flex items-center text-rose-700 font-bold text-[10px]">
+                                              <XCircle className="w-3 h-3 mr-0.5" /> Mismatch
+                                            </span>
+                                          )}
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            ) : (
+                              <div className="flex items-center space-x-1.5 text-emerald-800 font-bold mb-1">
+                                <CheckCircle2 className="w-4 h-4" />
+                                <span>{currentDoc.departmentResult.statusMessage}</span>
+                              </div>
+                            )}
+
+                            <div className="flex flex-wrap items-center justify-between text-[10px] font-mono text-slate-500 pt-1 border-t border-emerald-200/60">
+                              <span>Ref: {currentDoc.departmentResult.apiReferenceId}</span>
+                              <span className="truncate max-w-[200px]">{currentDoc.departmentResult.queryEndpoint}</span>
+                            </div>
                           </div>
                         )}
                       </div>
@@ -340,7 +440,196 @@ export const BidderInspectionModal: React.FC<BidderInspectionModalProps> = ({
             </div>
           )}
 
-          {/* TAB 2: Statutory Rule Scorecard */}
+          {/* TAB: Department Gateways & Database APIs */}
+          {activeTab === 'DEPARTMENT_GATEWAYS' && (
+            <div className="space-y-6">
+              <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-2xs flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                  <div className="flex items-center space-x-2">
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#002B5B] text-white uppercase tracking-wider">
+                      Authoritative Government Cross-Check
+                    </span>
+                    <span className="text-xs font-mono text-slate-500">
+                      National Statutory Gateways
+                    </span>
+                  </div>
+                  <h4 className="text-base font-bold text-slate-900 mt-1">
+                    Department Database Verification Matrix
+                  </h4>
+                  <p className="text-xs text-slate-500 max-w-2xl mt-0.5">
+                    Important text and identifiers extracted from submitted documents via Sarvam Indic AI are queried directly against concerned ministry and department databases to ensure statutory accuracy.
+                  </p>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <span className="text-xs font-bold text-emerald-800 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-200 flex items-center space-x-1.5">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    <span>Cross-Checked Against {submission.documents.filter(d => d.departmentResult).length} Statutory Databases</span>
+                  </span>
+                </div>
+              </div>
+
+              {/* Documents List with Full Gateway Verification */}
+              <div className="space-y-4">
+                {submission.documents.map((doc, idx) => (
+                  <div key={doc.id || idx} className="bg-white rounded-xl border border-slate-200 shadow-2xs overflow-hidden">
+                    {/* Header */}
+                    <div className="px-5 py-3 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center space-x-2.5">
+                        <span className="w-6 h-6 rounded-full bg-blue-100 text-blue-900 font-bold text-xs flex items-center justify-center">
+                          {idx + 1}
+                        </span>
+                        <div>
+                          <span className="font-bold text-slate-900 text-xs">
+                            {doc.documentType}
+                          </span>
+                          <span className="text-[11px] text-slate-500 ml-2 font-mono">
+                            {doc.fileName}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center space-x-2">
+                        {doc.departmentResult ? (
+                          <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center space-x-1">
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            <span>{doc.departmentResult.departmentName}: {doc.departmentResult.status}</span>
+                          </span>
+                        ) : (
+                          <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600">
+                            Verification Pending
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Body */}
+                    <div className="p-5 space-y-4">
+                      {/* Grid: Sarvam Extraction Info & Department Query Target */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                        {/* Sarvam Side */}
+                        <div className="p-3.5 rounded-lg bg-orange-50/60 border border-orange-200">
+                          <div className="flex items-center justify-between border-b border-orange-200 pb-2 mb-2">
+                            <span className="font-bold text-orange-950 flex items-center space-x-1.5">
+                              <Sparkles className="w-3.5 h-3.5 text-[#F27D26]" />
+                              <span>Sarvam Indic AI Extracted Data</span>
+                            </span>
+                            <span className="text-[10px] font-bold text-orange-800 bg-orange-100 px-2 py-0.5 rounded">
+                              Confidence: {doc.extractedData?.aiAuthenticityScore || 96}%
+                            </span>
+                          </div>
+                          <div className="space-y-1.5 text-[11px]">
+                            <div className="flex justify-between">
+                              <span className="text-slate-500">Document ID:</span>
+                              <span className="font-mono font-bold text-slate-900">{doc.extractedData?.documentNumber || 'N/A'}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-slate-500">Entity Identified:</span>
+                              <span className="font-bold text-slate-900 truncate max-w-[200px]">{doc.extractedData?.entityName || 'N/A'}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-slate-500">Indic Script:</span>
+                              <span className="text-slate-800 font-medium">{doc.extractedData?.indicScriptDetected || 'Devanagari / Latin'}</span>
+                            </div>
+                          </div>
+
+                          {doc.extractedData?.importantClauses && doc.extractedData.importantClauses.length > 0 && (
+                            <div className="mt-2.5 pt-2 border-t border-orange-200">
+                              <span className="text-[10px] font-bold text-orange-900 uppercase block mb-1">Extracted Key Clauses:</span>
+                              <ul className="space-y-0.5">
+                                {doc.extractedData.importantClauses.map((c, i) => (
+                                  <li key={i} className="text-[11px] text-slate-700 flex items-start space-x-1">
+                                    <span className="text-orange-500">•</span>
+                                    <span>{c}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Department Gateway Side */}
+                        {doc.departmentResult ? (
+                          <div className="p-3.5 rounded-lg bg-blue-50/60 border border-blue-200">
+                            <div className="flex items-center justify-between border-b border-blue-200 pb-2 mb-2">
+                              <span className="font-bold text-blue-950 flex items-center space-x-1.5">
+                                <Landmark className="w-3.5 h-3.5 text-blue-700" />
+                                <span>{doc.departmentResult.departmentName}</span>
+                              </span>
+                              <span className="text-[10px] font-bold text-blue-800 bg-blue-100 px-2 py-0.5 rounded">
+                                Status: {doc.departmentResult.status}
+                              </span>
+                            </div>
+                            <div className="space-y-1.5 text-[11px]">
+                              <div className="flex justify-between">
+                                <span className="text-slate-500">Statutory API:</span>
+                                <span className="font-mono text-slate-800 truncate max-w-[200px]">{doc.departmentResult.queryEndpoint}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-slate-500">Transaction Ref:</span>
+                                <span className="font-mono font-bold text-slate-900">{doc.departmentResult.apiReferenceId}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-slate-500">Query Timestamp:</span>
+                                <span className="text-slate-800">{doc.departmentResult.verifiedAt}</span>
+                              </div>
+                              <div className="pt-1 text-slate-700 font-medium">
+                                {doc.departmentResult.statusMessage}
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="p-3.5 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-500 text-xs">
+                            No departmental query record available
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Field Comparisons Table */}
+                      {doc.departmentResult?.fieldComparisons && doc.departmentResult.fieldComparisons.length > 0 && (
+                        <div className="pt-2">
+                          <span className="text-[11px] font-bold text-slate-800 uppercase tracking-wider block mb-2">
+                            Field-by-Field Cross-Match Results (Extracted Text vs Official Database Record)
+                          </span>
+                          <div className="overflow-x-auto rounded-lg border border-slate-200">
+                            <table className="w-full text-left text-xs border-collapse bg-white">
+                              <thead>
+                                <tr className="bg-slate-100 text-slate-800 font-bold border-b border-slate-200 text-[11px]">
+                                  <th className="p-2.5">Attribute / Field</th>
+                                  <th className="p-2.5">Extracted by Sarvam AI</th>
+                                  <th className="p-2.5">Official Department Record</th>
+                                  <th className="p-2.5 text-center">Verification Status</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-slate-100 text-[11px]">
+                                {doc.departmentResult.fieldComparisons.map((cmp, cIdx) => (
+                                  <tr key={cIdx} className="hover:bg-slate-50">
+                                    <td className="p-2.5 font-semibold text-slate-800">{cmp.field}</td>
+                                    <td className="p-2.5 font-mono text-slate-900">{cmp.extractedFromDoc}</td>
+                                    <td className="p-2.5 font-mono text-emerald-950 font-bold bg-emerald-50/40">{cmp.databaseMasterValue}</td>
+                                    <td className="p-2.5 text-center">
+                                      {cmp.match ? (
+                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                          <CheckCircle2 className="w-3 h-3 mr-1 text-emerald-600" /> Confirmed Match
+                                        </span>
+                                      ) : (
+                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
+                                          <XCircle className="w-3 h-3 mr-1 text-rose-600" /> Discrepancy Flagged
+                                        </span>
+                                      )}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           {activeTab === 'SCORECARD' && scorecard && (
             <div className="space-y-4">
               <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-2xs flex flex-col md:flex-row justify-between items-center gap-4">

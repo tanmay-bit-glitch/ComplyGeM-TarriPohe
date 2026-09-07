@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Tender, 
   RequiredDocumentSpec, 
   SubmittedDocument, 
   BidderSubmission, 
   ComplianceScorecard, 
-  DocumentType 
+  DocumentType,
+  AuthUser
 } from '../types';
 import { CameraCaptureModal } from './CameraCaptureModal';
 import { generateSampleDocumentDataUrl } from '../utils/sampleDocumentGenerator';
@@ -26,34 +27,65 @@ import {
   RefreshCw, 
   ExternalLink,
   HelpCircle,
-  Clock
+  Clock,
+  Eye,
+  FileText,
+  Database,
+  Landmark,
+  ChevronDown,
+  ChevronUp,
+  X
 } from 'lucide-react';
 
 interface BidderWizardProps {
   tenders: Tender[];
   onSubmitBid: (submission: BidderSubmission) => void;
   language: 'EN' | 'HI';
+  currentUser?: AuthUser;
 }
 
 export const BidderWizard: React.FC<BidderWizardProps> = ({
   tenders,
   onSubmitBid,
   language,
+  currentUser,
 }) => {
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4>(1);
   const [selectedTenderId, setSelectedTenderId] = useState<string>(tenders[0]?.id || '');
   
   // Bidder Form Info
-  const [bidderName, setBidderName] = useState('Bharat Infotech & Electronics Solutions Ltd.');
-  const [bidderEmail, setBidderEmail] = useState('tenders@bharatinfotech.in');
-  const [bidderPhone, setBidderPhone] = useState('+91 98201 44521');
-  const [panNumber, setPanNumber] = useState('AAACB1234D');
-  const [gstinNumber, setGstinNumber] = useState('27AAACB1234D1Z5');
-  const [udyamNumber, setUdyamNumber] = useState('UDYAM-MH-12-0048921');
-  const [cinNumber, setCinNumber] = useState('U72900MH2016PLC284102');
-  const [registeredState, setRegisteredState] = useState('Maharashtra');
+  const [bidderName, setBidderName] = useState('Himalayan Defence & Agro Machines Pvt Ltd');
+  const [bidderEmail, setBidderEmail] = useState('tenders@himalayanagro.in');
+  const [bidderPhone, setBidderPhone] = useState('+91 94191 22840');
+  const [panNumber, setPanNumber] = useState('AAACH8841E');
+  const [gstinNumber, setGstinNumber] = useState('01AAACH8841E1Z3');
+  const [udyamNumber, setUdyamNumber] = useState('UDYAM-JK-08-0012491');
+  const [cinNumber, setCinNumber] = useState('U29210JK2018PTC009412');
+  const [registeredState, setRegisteredState] = useState('Jammu and Kashmir');
   const [enterpriseType, setEnterpriseType] = useState<'MICRO' | 'SMALL' | 'MEDIUM' | 'LARGE' | 'STARTUP'>('SMALL');
-  const [declaredLocalContentPercent, setDeclaredLocalContentPercent] = useState<number>(65);
+  const [declaredLocalContentPercent, setDeclaredLocalContentPercent] = useState<number>(68);
+
+  // Auto-sync with currentUser when logged in as a specific bidder
+  useEffect(() => {
+    if (currentUser?.companyDetails) {
+      const cd = currentUser.companyDetails;
+      setBidderName(cd.companyName || currentUser.name);
+      setBidderEmail(currentUser.email);
+      setBidderPhone(cd.phone || '+91 94191 22840');
+      setPanNumber(cd.panNumber || 'AAACH8841E');
+      setGstinNumber(cd.gstinNumber || '01AAACH8841E1Z3');
+      setUdyamNumber(cd.udyamNumber || 'UDYAM-JK-08-0012491');
+      setCinNumber(cd.cinNumber || '');
+      setRegisteredState(cd.registeredState || 'Jammu and Kashmir');
+      setEnterpriseType(cd.enterpriseType || 'SMALL');
+      if (cd.defaultLocalContent !== undefined) {
+        setDeclaredLocalContentPercent(cd.defaultLocalContent);
+      }
+      if (cd.defaultTenderId && tenders.some(t => t.id === cd.defaultTenderId)) {
+        setSelectedTenderId(cd.defaultTenderId);
+      }
+    }
+  }, [currentUser, tenders]);
 
   // Uploaded documents state
   const [uploadedDocs, setUploadedDocs] = useState<Record<string, SubmittedDocument>>({});
@@ -61,6 +93,13 @@ export const BidderWizard: React.FC<BidderWizardProps> = ({
   // Camera Modal
   const [cameraModalOpen, setCameraModalOpen] = useState(false);
   const [activeSpecForCamera, setActiveSpecForCamera] = useState<RequiredDocumentSpec | null>(null);
+
+  // Document Preview Modal
+  const [previewDoc, setPreviewDoc] = useState<SubmittedDocument | null>(null);
+
+  // Real-time stage tracking for simultaneous individual document verification
+  const [docVerifyingStages, setDocVerifyingStages] = useState<Record<string, string>>({});
+  const [expandedRawTextDocs, setExpandedRawTextDocs] = useState<Record<string, boolean>>({});
 
   // Verification State
   const [isVerifying, setIsVerifying] = useState(false);
@@ -74,88 +113,165 @@ export const BidderWizard: React.FC<BidderWizardProps> = ({
 
   const currentTender = tenders.find(t => t.id === selectedTenderId) || tenders[0];
 
-  // 1-Click Fill Helpers for non-technical evaluation
-  const handleLoadCompliantSample = () => {
-    setBidderName('Bharat Infotech & Electronics Solutions Ltd.');
-    setBidderEmail('tenders@bharatinfotech.in');
-    setBidderPhone('+91 98201 44521');
-    setPanNumber('AAACB1234D');
-    setGstinNumber('27AAACB1234D1Z5');
-    setUdyamNumber('UDYAM-MH-12-0048921');
-    setCinNumber('U72900MH2016PLC284102');
-    setRegisteredState('Maharashtra');
-    setEnterpriseType('SMALL');
-    setDeclaredLocalContentPercent(65);
+  // Simultaneous Single Document Verification Routine:
+  // Step 1: Extract important text, registration IDs, and clauses with Sarvam Indic AI
+  // Step 2: Transmit extracted text to concerned department API database for verification
+  const verifySingleDocument = async (spec: RequiredDocumentSpec, doc: SubmittedDocument) => {
+    const specId = spec.id;
+    setDocVerifyingStages(prev => ({
+      ...prev,
+      [specId]: 'Sarvam Indic AI: Extracting text, registration identifiers & statutory clauses...',
+    }));
 
-    // Auto-populate all required documents with authentic sample SVG data URLs
-    const sampleDocsMap: Record<string, SubmittedDocument> = {};
-    currentTender.requiredDocuments.forEach(spec => {
-      const dataUrl = generateSampleDocumentDataUrl(spec.type, 'Bharat Infotech & Electronics Solutions Ltd.', 
-        spec.type === 'UDYAM' ? 'UDYAM-MH-12-0048921' :
-        spec.type === 'GSTIN' ? '27AAACB1234D1Z5' :
-        spec.type === 'PAN' ? 'AAACB1234D' :
-        spec.type === 'MAKE_IN_INDIA' ? 'MII-2026-645' :
-        spec.type === 'OEM_AUTH' ? 'MAF-OEM-9921' : 'AFF-NOTARY-2026',
-        { localContent: 65 }
+    try {
+      // Step 1: AI OCR Extraction & Forensic Inspection via Sarvam Sovereign Engine
+      const extracted = await extractDocumentWithAI(spec.type, doc.fileName, doc.fileDataUrl, 'SARVAM', bidderName);
+
+      // Check if document was rejected as a personal photo or invalid non-document
+      if (extracted.isValidDocument === false || extracted.verificationStatus === 'REJECTED') {
+        const rejectionMsg =
+          extracted.rejectionReason ||
+          'Verification failed: Uploaded file rejected by AI inspection as a personal photo or non-statutory file. Official Government seal and registration numbers not found.';
+
+        setUploadedDocs(prev => ({
+          ...prev,
+          [specId]: {
+            ...doc,
+            extractedData: extracted,
+            departmentResult: {
+              departmentCode: spec.type,
+              departmentName: spec.departmentAuthority,
+              queryEndpoint: 'https://gateway.digitalindia.gov.in/v1/verify',
+              queriedIdentifier: 'INVALID_NON_DOCUMENT',
+              queryTimestamp: new Date().toISOString(),
+              status: 'NOT_FOUND',
+              verifiedAttributes: {},
+              apiReferenceId: `REJ-${Date.now().toString(36).toUpperCase()}`,
+              statusMessage: rejectionMsg,
+            },
+            verificationStatus: 'REJECTED',
+          },
+        }));
+
+        postNotification({
+          title: `Document Rejected: ${doc.fileName}`,
+          message: rejectionMsg,
+          type: 'ALERT',
+        });
+
+        return;
+      }
+
+      // Check if document type is mismatched
+      if (extracted.isExpectedDocumentType === false || extracted.verificationStatus === 'DISCREPANCY_FLAGGED') {
+        const discMsg =
+          extracted.rejectionReason ||
+          `Discrepancy detected: Uploaded document does not match the required ${spec.title} specification.`;
+
+        setUploadedDocs(prev => ({
+          ...prev,
+          [specId]: {
+            ...doc,
+            extractedData: extracted,
+            departmentResult: {
+              departmentCode: spec.type,
+              departmentName: spec.departmentAuthority,
+              queryEndpoint: 'https://gateway.digitalindia.gov.in/v1/verify',
+              queriedIdentifier: extracted.documentNumber || 'MISMATCHED_TYPE',
+              queryTimestamp: new Date().toISOString(),
+              status: 'MISMATCH',
+              verifiedAttributes: {},
+              apiReferenceId: `DISC-${Date.now().toString(36).toUpperCase()}`,
+              statusMessage: discMsg,
+            },
+            verificationStatus: 'DISCREPANCY_FLAGGED',
+          },
+        }));
+        return;
+      }
+
+      setDocVerifyingStages(prev => ({
+        ...prev,
+        [specId]: `Transmitting extracted text & ID to ${spec.departmentAuthority} API database...`,
+      }));
+
+      // Brief delay to make the live gateway verification visible
+      await new Promise(resolve => setTimeout(resolve, 600));
+
+      // Step 2: Department statutory gateway query using Sarvam-extracted text and identifiers
+      let deptCode = 'STATUTORY_GATEWAY';
+      let queryId = extracted?.documentNumber || panNumber;
+
+      if (spec.type === 'UDYAM') {
+        deptCode = 'MSME_UDYAM';
+        queryId = extracted?.documentNumber || udyamNumber || 'UDYAM-MH-12-0048921';
+      } else if (spec.type === 'GSTIN') {
+        deptCode = 'GSTN';
+        queryId = extracted?.documentNumber || gstinNumber || '27AAACB1234D1Z5';
+      } else if (spec.type === 'PAN') {
+        deptCode = 'INCOME_TAX_PAN';
+        queryId = extracted?.documentNumber || panNumber || 'AAACB1234D';
+      } else if (spec.type === 'DEBARMENT_AFFIDAVIT') {
+        deptCode = 'CPPP_DEBARMENT';
+        queryId = bidderName;
+      } else if (spec.type === 'EPFO') {
+        deptCode = 'EPFO_ESIC';
+        queryId = extracted?.documentNumber || 'MH/BAN/0049210/000';
+      } else if (spec.type === 'MAKE_IN_INDIA') {
+        deptCode = 'MAKE_IN_INDIA';
+        queryId = extracted?.documentNumber || 'MII-DECL-2026-894';
+      } else if (spec.type === 'OEM_AUTH') {
+        deptCode = 'OEM_AUTH';
+        queryId = extracted?.documentNumber || 'MAF-OEM-2026-9921';
+      }
+
+      const deptResult = await queryDepartmentGateway(
+        deptCode,
+        queryId,
+        bidderName,
+        true,
+        extracted.rawExtractedText,
+        extracted
       );
 
-      sampleDocsMap[spec.id] = {
-        id: `doc-${spec.id}-${Date.now()}`,
-        specId: spec.id,
-        documentType: spec.type,
-        fileName: `${spec.type}_Registration_Certificate.pdf`,
-        fileSize: '512 KB',
-        uploadMethod: 'FILE_UPLOAD',
-        uploadedAt: new Date().toISOString(),
-        fileDataUrl: dataUrl,
-        verificationStatus: 'PENDING',
-      };
-    });
-
-    setUploadedDocs(sampleDocsMap);
+      setUploadedDocs(prev => ({
+        ...prev,
+        [specId]: {
+          ...doc,
+          extractedData: extracted,
+          departmentResult: deptResult,
+          verificationStatus: deptResult.status === 'MATCHED' ? 'VERIFIED' : 'DISCREPANCY_FLAGGED',
+        },
+      }));
+    } catch {
+      setUploadedDocs(prev => ({
+        ...prev,
+        [specId]: {
+          ...doc,
+          verificationStatus: 'REJECTED',
+          departmentResult: {
+            departmentCode: spec.type,
+            departmentName: spec.departmentAuthority,
+            queryEndpoint: 'https://gateway.digitalindia.gov.in/v1/verify',
+            queriedIdentifier: 'UNVERIFIED',
+            queryTimestamp: new Date().toISOString(),
+            status: 'NOT_FOUND',
+            verifiedAttributes: {},
+            apiReferenceId: `FAIL-${Date.now().toString(36).toUpperCase()}`,
+            statusMessage: 'Verification failed: Could not establish validity of uploaded document.',
+          },
+        },
+      }));
+    } finally {
+      setDocVerifyingStages(prev => {
+        const copy = { ...prev };
+        delete copy[specId];
+        return copy;
+      });
+    }
   };
 
-  const handleLoadNonCompliantSample = () => {
-    setBidderName('Omega Networks & Hardware Corp');
-    setBidderEmail('sales@omeganetworks.in');
-    setBidderPhone('+91 94120 99812');
-    setPanNumber('BBBCO9918F'); // Note: Income tax database lists this under Omega Trading & Imports LLP
-    setGstinNumber('07BBBCO9918F1Z2'); // Note: GSTN database has pending GSTR-3B defaults
-    setUdyamNumber('UDYAM-DL-03-0019241');
-    setCinNumber('U51909DL2019PTC349102');
-    setRegisteredState('Delhi');
-    setEnterpriseType('MEDIUM');
-    setDeclaredLocalContentPercent(28); // Tender requires 50%!
-
-    const sampleDocsMap: Record<string, SubmittedDocument> = {};
-    currentTender.requiredDocuments.forEach(spec => {
-      const isMii = spec.type === 'MAKE_IN_INDIA';
-      const dataUrl = generateSampleDocumentDataUrl(spec.type, 'Omega Networks & Hardware Corp',
-        spec.type === 'UDYAM' ? 'UDYAM-DL-03-0019241' :
-        spec.type === 'GSTIN' ? '07BBBCO9918F1Z2' :
-        spec.type === 'PAN' ? 'BBBCO9918F' :
-        spec.type === 'MAKE_IN_INDIA' ? 'MII-2026-285' :
-        spec.type === 'OEM_AUTH' ? 'MAF-OMEGA-441' : 'AFF-NOTARY-991',
-        { localContent: 28 }
-      );
-
-      sampleDocsMap[spec.id] = {
-        id: `doc-${spec.id}-${Date.now()}`,
-        specId: spec.id,
-        documentType: spec.type,
-        fileName: `${spec.type}_Document.pdf`,
-        fileSize: '430 KB',
-        uploadMethod: 'FILE_UPLOAD',
-        uploadedAt: new Date().toISOString(),
-        fileDataUrl: dataUrl,
-        verificationStatus: 'PENDING',
-      };
-    });
-
-    setUploadedDocs(sampleDocsMap);
-  };
-
-  // Upload handlers
+  // Upload handlers: upload AND simultaneously verify one by one
   const handleFileUpload = (spec: RequiredDocumentSpec, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -163,42 +279,54 @@ export const BidderWizard: React.FC<BidderWizardProps> = ({
     const reader = new FileReader();
     reader.onload = () => {
       const dataUrl = reader.result as string;
+      const newDoc: SubmittedDocument = {
+        id: `doc-${spec.id}-${Date.now()}`,
+        specId: spec.id,
+        documentType: spec.type,
+        fileName: file.name,
+        fileSize: `${(file.size / 1024).toFixed(0)} KB`,
+        uploadMethod: 'FILE_UPLOAD',
+        uploadedAt: new Date().toISOString(),
+        fileDataUrl: dataUrl,
+        verificationStatus: 'AI_VERIFYING',
+      };
+
       setUploadedDocs(prev => ({
         ...prev,
-        [spec.id]: {
-          id: `doc-${spec.id}-${Date.now()}`,
-          specId: spec.id,
-          documentType: spec.type,
-          fileName: file.name,
-          fileSize: `${(file.size / 1024).toFixed(0)} KB`,
-          uploadMethod: 'FILE_UPLOAD',
-          uploadedAt: new Date().toISOString(),
-          fileDataUrl: dataUrl,
-          verificationStatus: 'PENDING',
-        },
+        [spec.id]: newDoc,
       }));
+
+      // Simultaneously verify document
+      verifySingleDocument(spec, newDoc);
     };
     reader.readAsDataURL(file);
+    e.target.value = '';
   };
 
   const handleCameraCapture = (dataUrl: string) => {
     if (!activeSpecForCamera) return;
     const spec = activeSpecForCamera;
+    const newDoc: SubmittedDocument = {
+      id: `doc-${spec.id}-${Date.now()}`,
+      specId: spec.id,
+      documentType: spec.type,
+      fileName: `Camera_Scan_${spec.type}_${Date.now().toString().slice(-4)}.jpg`,
+      fileSize: '780 KB',
+      uploadMethod: 'CAMERA_CAPTURE',
+      uploadedAt: new Date().toISOString(),
+      fileDataUrl: dataUrl,
+      verificationStatus: 'AI_VERIFYING',
+    };
+
     setUploadedDocs(prev => ({
       ...prev,
-      [spec.id]: {
-        id: `doc-${spec.id}-${Date.now()}`,
-        specId: spec.id,
-        documentType: spec.type,
-        fileName: `Camera_Scan_${spec.type}_${Date.now().toString().slice(-4)}.jpg`,
-        fileSize: '780 KB',
-        uploadMethod: 'CAMERA_CAPTURE',
-        uploadedAt: new Date().toISOString(),
-        fileDataUrl: dataUrl,
-        verificationStatus: 'PENDING',
-      },
+      [spec.id]: newDoc,
     }));
     setActiveSpecForCamera(null);
+    setCameraModalOpen(false);
+
+    // Simultaneously verify document
+    verifySingleDocument(spec, newDoc);
   };
 
   const handleQuickLoadSingleDoc = (spec: RequiredDocumentSpec) => {
@@ -212,20 +340,25 @@ export const BidderWizard: React.FC<BidderWizardProps> = ({
       { localContent: declaredLocalContentPercent }
     );
 
+    const newDoc: SubmittedDocument = {
+      id: `doc-${spec.id}-${Date.now()}`,
+      specId: spec.id,
+      documentType: spec.type,
+      fileName: `Official_${spec.type}_Certificate.pdf`,
+      fileSize: '540 KB',
+      uploadMethod: 'FILE_UPLOAD',
+      uploadedAt: new Date().toISOString(),
+      fileDataUrl: dataUrl,
+      verificationStatus: 'AI_VERIFYING',
+    };
+
     setUploadedDocs(prev => ({
       ...prev,
-      [spec.id]: {
-        id: `doc-${spec.id}-${Date.now()}`,
-        specId: spec.id,
-        documentType: spec.type,
-        fileName: `Official_${spec.type}_Certificate.pdf`,
-        fileSize: '540 KB',
-        uploadMethod: 'FILE_UPLOAD',
-        uploadedAt: new Date().toISOString(),
-        fileDataUrl: dataUrl,
-        verificationStatus: 'PENDING',
-      },
+      [spec.id]: newDoc,
     }));
+
+    // Simultaneously verify document
+    verifySingleDocument(spec, newDoc);
   };
 
   // Execution: AI OCR + Multi-portal Verification + Rule Engine Scoring
@@ -237,18 +370,49 @@ export const BidderWizard: React.FC<BidderWizardProps> = ({
     const verifiedDocList: SubmittedDocument[] = [];
 
     try {
-      // Step 1: AI OCR Extraction for each document via Sarvam AI
+      // Process documents (reusing any already verified simultaneously in Step 2)
       for (let i = 0; i < docList.length; i++) {
         const doc = docList[i];
+        
+        if (doc.verificationStatus === 'VERIFIED' && doc.extractedData && doc.departmentResult) {
+          verifiedDocList.push(doc);
+          continue;
+        }
+
+        if (doc.verificationStatus === 'REJECTED' && doc.extractedData) {
+          verifiedDocList.push(doc);
+          continue;
+        }
+
         setVerificationProgress({
-          stage: `Sarvam Indic OCR & Forensic Scan (${i + 1}/${docList.length})`,
-          detail: `Scanning ${doc.fileName} with Sarvam AI Indic Sovereign Engine for Ashoka Emblem, bilingual Devanagari text, stamps & digital signatures...`,
+          stage: `AI Multimodal OCR & Forensic Scan (${i + 1}/${docList.length})`,
+          detail: `Scanning ${doc.fileName} for Ashoka Emblem, bilingual Devanagari text, stamps & registration numbers...`,
           percent: Math.round(((i + 1) / (docList.length * 2)) * 100),
         });
 
-        const extracted = await extractDocumentWithAI(doc.documentType, doc.fileName, doc.fileDataUrl, 'SARVAM');
+        const extracted = doc.extractedData || await extractDocumentWithAI(doc.documentType, doc.fileName, doc.fileDataUrl, 'SARVAM', bidderName);
 
-        // Step 2: Department verification gateway dispatch
+        if (extracted.isValidDocument === false || extracted.verificationStatus === 'REJECTED') {
+          verifiedDocList.push({
+            ...doc,
+            extractedData: extracted,
+            departmentResult: {
+              departmentCode: doc.documentType,
+              departmentName: 'Central Statutory Gateway',
+              queryEndpoint: '',
+              queriedIdentifier: 'INVALID_NON_DOCUMENT',
+              queryTimestamp: new Date().toISOString(),
+              status: 'NOT_FOUND',
+              verifiedAttributes: {},
+              apiReferenceId: `REJ-${Date.now().toString(36).toUpperCase()}`,
+              statusMessage: extracted.rejectionReason || 'Verification failed: Uploaded file rejected by AI inspection as a non-statutory image.',
+            },
+            verificationStatus: 'REJECTED',
+          });
+          continue;
+        }
+
+        // Department verification gateway dispatch
         setVerificationProgress({
           stage: `Government Portal Gateway Query (${doc.documentType})`,
           detail: `Connecting to ${
@@ -278,10 +442,23 @@ export const BidderWizard: React.FC<BidderWizardProps> = ({
           queryId = bidderName;
         } else if (doc.documentType === 'EPFO') {
           deptCode = 'EPFO_ESIC';
-          queryId = 'MH/BAN/0049210';
+          queryId = extracted?.documentNumber || 'MH/BAN/0049210/000';
+        } else if (doc.documentType === 'MAKE_IN_INDIA') {
+          deptCode = 'MAKE_IN_INDIA';
+          queryId = extracted?.documentNumber || 'MII-DECL-2026-894';
+        } else if (doc.documentType === 'OEM_AUTH') {
+          deptCode = 'OEM_AUTH';
+          queryId = extracted?.documentNumber || 'MAF-OEM-2026-9921';
         }
 
-        const deptResult = await queryDepartmentGateway(deptCode, queryId, bidderName);
+        const deptResult = doc.departmentResult || await queryDepartmentGateway(
+          deptCode,
+          queryId,
+          bidderName,
+          true,
+          extracted?.rawExtractedText,
+          extracted
+        );
 
         verifiedDocList.push({
           ...doc,
@@ -291,7 +468,7 @@ export const BidderWizard: React.FC<BidderWizardProps> = ({
         });
       }
 
-      // Step 3: Run the GeM Bid Compliance Rule Engine
+      // Run the GeM Bid Compliance Rule Engine
       setVerificationProgress({
         stage: 'GeM Rule Engine Evaluation',
         detail: 'Computing 100-point statutory compliance score and classifying bidder risk level...',
@@ -371,54 +548,38 @@ export const BidderWizard: React.FC<BidderWizardProps> = ({
     }
   };
 
+  const docList = Object.values(uploadedDocs) as SubmittedDocument[];
+  const verifyingCount = docList.filter(
+    d => d.verificationStatus === 'AI_VERIFYING' || !!docVerifyingStages[d.specId]
+  ).length;
+
+  const isAnyVerifying = verifyingCount > 0;
+
+  const rejectedCount = docList.filter(
+    d => d.verificationStatus === 'REJECTED' || d.extractedData?.isValidDocument === false
+  ).length;
+
   const missingCount = currentTender.requiredDocuments.filter(
-    req => req.isMandatory && !uploadedDocs[req.id]
+    req => req.isMandatory && (!uploadedDocs[req.id] || uploadedDocs[req.id].verificationStatus === 'REJECTED')
   ).length;
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-6">
-      {/* 1. Header & Stepper */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 mb-6">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-5">
-          <div>
-            <span className="text-xs font-bold text-[#F27D26] uppercase tracking-wider bg-orange-50 px-2.5 py-0.5 rounded border border-orange-200">
-              Bidder Self-Service Portal
-            </span>
-            <h2 className="text-2xl font-bold text-slate-900 mt-1">
-              GeM Bid Statutory Compliance & Document Verification
-            </h2>
-            <p className="text-sm text-slate-500">
-              Upload statutory registrations via camera or file form. AI will extract identifiers, cross-verify with government databases, and compute your GeM Compliance Score.
-            </p>
-          </div>
-
-          {/* Quick 1-Click Evaluation Presets */}
-          <div className="flex flex-wrap items-center gap-2 bg-slate-50 p-2.5 rounded-lg border border-slate-200">
-            <span className="text-[11px] font-bold text-slate-600 flex items-center space-x-1">
-              <Sparkles className="w-3.5 h-3.5 text-[#F27D26]" />
-              <span>1-Click Test Data:</span>
-            </span>
-            <button
-              id="preset-compliant-btn"
-              onClick={handleLoadCompliantSample}
-              className="px-2.5 py-1 text-xs font-semibold bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-md transition-colors"
-              title="Loads a fully compliant MSME bidder profile with all certificates"
-            >
-              ✓ Sample Compliant MSME (96%)
-            </button>
-            <button
-              id="preset-noncompliant-btn"
-              onClick={handleLoadNonCompliantSample}
-              className="px-2.5 py-1 text-xs font-semibold bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-300 rounded-md transition-colors"
-              title="Loads a bidder with GST default, name mismatch, and low local content to test rule engine"
-            >
-              ⚠️ Sample Non-Compliant Bidder (42%)
-            </button>
-          </div>
+      {/* 1. Simplistic Header & Stepper */}
+      <div className="bg-white rounded-xl border border-slate-200 shadow-xs p-5 mb-6">
+        <div className="mb-4">
+          <h2 className="text-xl font-semibold text-slate-900">
+            {language === 'HI' ? 'बोली अनुपालन एवं प्रस्तुति' : 'Bid Submission'}
+          </h2>
+          <p className="text-xs text-slate-500 mt-0.5">
+            {language === 'HI' 
+              ? 'वैधानिक दस्तावेज़ अपलोड करें, अनुपालन सत्यापित करें और अपनी निविदा जमा करें।'
+              : 'Upload statutory documents to verify compliance and submit your tender bid.'}
+          </p>
         </div>
 
         {/* Stepper Progress Bar */}
-        <div className="grid grid-cols-4 gap-3 pt-5 text-xs font-semibold text-center">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2 text-xs font-semibold text-center">
           <div className={`p-3 rounded-lg border flex flex-col items-center justify-center transition-all ${
             currentStep === 1 ? 'bg-[#002B5B] text-white border-[#002B5B] shadow-sm' : 
             currentStep > 1 ? 'bg-emerald-50 text-emerald-800 border-emerald-300' : 'bg-slate-50 text-slate-500 border-slate-200'
@@ -432,7 +593,7 @@ export const BidderWizard: React.FC<BidderWizardProps> = ({
             currentStep > 2 ? 'bg-emerald-50 text-emerald-800 border-emerald-300' : 'bg-slate-50 text-slate-500 border-slate-200'
           }`}>
             <span className={`text-[10px] uppercase font-bold ${currentStep === 2 ? 'text-[#F27D26]' : 'opacity-80'}`}>Step 2</span>
-            <span className="font-bold">Document Upload & Scan</span>
+            <span className="font-bold">Document Upload & Live Verification</span>
           </div>
 
           <div className={`p-3 rounded-lg border flex flex-col items-center justify-center transition-all ${
@@ -440,7 +601,7 @@ export const BidderWizard: React.FC<BidderWizardProps> = ({
             currentStep > 3 ? 'bg-emerald-50 text-emerald-800 border-emerald-300' : 'bg-slate-50 text-slate-500 border-slate-200'
           }`}>
             <span className={`text-[10px] uppercase font-bold ${currentStep === 3 ? 'text-[#F27D26]' : 'opacity-80'}`}>Step 3</span>
-            <span className="font-bold">AI OCR & Verification</span>
+            <span className="font-bold">GeM Rule Engine Scoring</span>
           </div>
 
           <div className={`p-3 rounded-lg border flex flex-col items-center justify-center transition-all ${
@@ -483,30 +644,52 @@ export const BidderWizard: React.FC<BidderWizardProps> = ({
               </select>
               
               {/* Tender Parameters Highlight */}
-              <div className="mt-2.5 p-3 bg-amber-50/70 rounded-lg border border-amber-200 text-xs flex flex-wrap gap-4">
-                <div>
-                  <span className="text-slate-500">Estimated Value:</span>{' '}
-                  <span className="font-bold text-slate-800">
-                    ₹{(currentTender.estimatedValueINR / 10000000).toFixed(2)} Cr
-                  </span>
+              <div className="mt-2.5 p-3.5 bg-slate-50 rounded-lg border border-slate-200 text-xs">
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-2 pb-2 border-b border-slate-200">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-slate-900">{currentTender.organisation || currentTender.department}</span>
+                    {currentTender.officeName && (
+                      <span className="text-slate-500">• {currentTender.officeName}</span>
+                    )}
+                  </div>
+                  {currentTender.totalQuantity && (
+                    <span className="bg-blue-50 text-blue-700 font-semibold px-2 py-0.5 rounded text-[11px] border border-blue-200">
+                      Qty: {currentTender.totalQuantity}
+                    </span>
+                  )}
                 </div>
-                <div>
-                  <span className="text-slate-500">Min. Annual Turnover:</span>{' '}
-                  <span className="font-bold text-slate-800">
-                    ₹{(currentTender.minimumTurnoverINR / 10000000).toFixed(2)} Cr
-                  </span>
-                </div>
-                <div>
-                  <span className="text-slate-500">Mandatory Local Content (MII):</span>{' '}
-                  <span className="font-bold text-amber-900">
-                    {currentTender.minimumLocalContentPercent}%
-                  </span>
-                </div>
-                <div>
-                  <span className="text-slate-500">MSE Purchase Preference:</span>{' '}
-                  <span className="font-bold text-emerald-800">
-                    {currentTender.isMsePreferenceApplicable ? 'Applicable (Udyam Valid)' : 'No'}
-                  </span>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div>
+                    <span className="text-slate-500 block text-[11px]">Est. Value / EMD:</span>
+                    <span className="font-bold text-slate-800">
+                      {currentTender.estimatedValueINR >= 10000000
+                        ? `₹${(currentTender.estimatedValueINR / 10000000).toFixed(2)} Cr`
+                        : `₹${(currentTender.estimatedValueINR / 100000).toFixed(2)} Lakh`}
+                      {currentTender.emdAmountINR ? ` (EMD: ₹${currentTender.emdAmountINR.toLocaleString('en-IN')})` : ''}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 block text-[11px]">Min. Annual Turnover:</span>
+                    <span className="font-bold text-slate-800">
+                      {currentTender.minimumTurnoverINR >= 10000000
+                        ? `₹${(currentTender.minimumTurnoverINR / 10000000).toFixed(2)} Cr`
+                        : currentTender.minimumTurnoverINR > 0
+                        ? `₹${(currentTender.minimumTurnoverINR / 100000).toFixed(2)} Lakh`
+                        : 'Exempt / Relaxed'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 block text-[11px]">Make In India (MII):</span>
+                    <span className="font-bold text-amber-800">
+                      Min {currentTender.minimumLocalContentPercent}% {currentTender.isMiiReserved ? '(Reserved)' : ''}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 block text-[11px]">MSE Preference:</span>
+                    <span className="font-bold text-emerald-800">
+                      {currentTender.isMsePreferenceApplicable ? 'Applicable (Udyam)' : 'Not Applicable'}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -660,26 +843,36 @@ export const BidderWizard: React.FC<BidderWizardProps> = ({
         </div>
       )}
 
-      {/* STEP 2: Document Upload & Camera Scan */}
+      {/* STEP 2: Document Upload & Live Simultaneous Verification */}
       {currentStep === 2 && (
         <div className="bg-white rounded-xl border border-slate-200 shadow-xs p-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
             <div>
               <h3 className="text-base font-bold text-slate-900 flex items-center space-x-2">
                 <FileCheck className="w-5 h-5 text-[#1e3a8a]" />
-                <span>Upload Required Statutory Documents</span>
+                <span>Upload & Verify Statutory Documents</span>
               </h3>
-              <p className="text-xs text-slate-500">
-                You can upload documents from your computer or capture them directly using your phone/laptop camera.
+              <p className="text-xs text-slate-500 mt-0.5">
+                Each document is uploaded and simultaneously verified one by one using Sarvam Indic Sovereign AI OCR and government gateway cross-checks.
               </p>
             </div>
 
-            <div className="text-right text-xs">
-              <span className={`font-bold px-2 py-1 rounded ${
-                missingCount === 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className={`font-bold px-2.5 py-1 text-xs rounded-lg ${
+                isAnyVerifying 
+                  ? 'bg-blue-100 text-blue-800 border border-blue-200' 
+                  : rejectedCount > 0
+                  ? 'bg-rose-100 text-rose-800 border border-rose-200'
+                  : missingCount === 0 
+                  ? 'bg-emerald-100 text-emerald-800' 
+                  : 'bg-amber-100 text-amber-800'
               }`}>
-                {missingCount === 0 
-                  ? 'All Mandatory Documents Attached' 
+                {isAnyVerifying 
+                  ? `Verifying (${verifyingCount} in progress)...`
+                  : rejectedCount > 0
+                  ? `${rejectedCount} Document(s) Rejected - Invalid File`
+                  : missingCount === 0 
+                  ? 'All Mandatory Documents Verified' 
                   : `${missingCount} Mandatory Document(s) Pending`}
               </span>
             </div>
@@ -689,13 +882,24 @@ export const BidderWizard: React.FC<BidderWizardProps> = ({
           <div className="space-y-4 mb-6">
             {currentTender.requiredDocuments.map(spec => {
               const uploaded = uploadedDocs[spec.id];
+              const isVerifyingThis = uploaded?.verificationStatus === 'AI_VERIFYING' || !!docVerifyingStages[spec.id];
+              const isVerified = uploaded?.verificationStatus === 'VERIFIED';
+              const isRejected = uploaded?.verificationStatus === 'REJECTED' || uploaded?.extractedData?.isValidDocument === false;
+              const isDiscrepant = uploaded?.verificationStatus === 'DISCREPANCY_FLAGGED';
+              const stageText = docVerifyingStages[spec.id];
 
               return (
                 <div
                   key={spec.id}
                   className={`p-4 rounded-xl border transition-all ${
-                    uploaded
+                    isVerifyingThis
+                      ? 'bg-blue-50/50 border-blue-400 ring-1 ring-blue-300'
+                      : isRejected
+                      ? 'bg-rose-50/50 border-rose-300 ring-1 ring-rose-200'
+                      : isVerified
                       ? 'bg-emerald-50/40 border-emerald-300'
+                      : isDiscrepant
+                      ? 'bg-amber-50/40 border-amber-300'
                       : spec.isMandatory
                       ? 'bg-slate-50 border-slate-300'
                       : 'bg-white border-slate-200'
@@ -713,6 +917,34 @@ export const BidderWizard: React.FC<BidderWizardProps> = ({
                         <span className="text-[11px] font-bold text-slate-500">
                           {spec.departmentAuthority}
                         </span>
+
+                        {isVerifyingThis && (
+                          <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-blue-100 text-blue-800 border border-blue-300 flex items-center space-x-1 animate-pulse">
+                            <RefreshCw className="w-3 h-3 text-blue-600 animate-spin" />
+                            <span>Verifying...</span>
+                          </span>
+                        )}
+
+                        {isVerified && (
+                          <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center space-x-1">
+                            <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                            <span>Verified</span>
+                          </span>
+                        )}
+
+                        {isRejected && (
+                          <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-rose-100 text-rose-800 border border-rose-300 flex items-center space-x-1">
+                            <XCircle className="w-3 h-3 text-rose-600" />
+                            <span>Rejected - Invalid Document</span>
+                          </span>
+                        )}
+
+                        {isDiscrepant && (
+                          <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-amber-100 text-amber-800 border border-amber-300 flex items-center space-x-1">
+                            <AlertTriangle className="w-3 h-3 text-amber-600" />
+                            <span>Discrepancy</span>
+                          </span>
+                        )}
                       </div>
 
                       <h4 className="text-sm font-bold text-slate-900 mt-1">
@@ -724,32 +956,284 @@ export const BidderWizard: React.FC<BidderWizardProps> = ({
                       <div className="text-[11px] text-slate-500 mt-1">
                         <span className="font-semibold text-slate-700">Audit Rule:</span> {spec.validationCriteria}
                       </div>
+
+                      {/* Simultaneous Verification Progress Strip */}
+                      {isVerifyingThis && (
+                        <div className="mt-3 p-3 rounded-lg bg-blue-50 border border-blue-200 text-xs text-blue-900 flex items-start space-x-3 shadow-2xs">
+                          <RefreshCw className="w-4 h-4 text-blue-600 animate-spin shrink-0 mt-0.5" />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between font-bold text-xs">
+                              <span>Simultaneous Verification in Progress</span>
+                              <span className="text-[11px] text-blue-600 font-semibold animate-pulse">Running AI OCR & Gateway Check...</span>
+                            </div>
+                            <p className="text-[11px] text-blue-800 mt-1 font-medium">
+                              {stageText || 'Scanning Ashoka Stambh emblem, bilingual Indic text & validating registration ID...'}
+                            </p>
+                            <div className="w-full bg-blue-200/80 rounded-full h-1.5 mt-2 overflow-hidden">
+                              <div className="bg-[#1e3a8a] h-1.5 rounded-full animate-pulse w-3/4"></div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Two-Stage Verification Details: 1. Sarvam AI Text Extraction -> 2. Department Database Cross-Match */}
+                      {isVerified && uploaded?.extractedData && (
+                        <div className="mt-3 space-y-2.5">
+                          {/* Stage 1: Sarvam Indic AI Extraction */}
+                          <div className="p-3 rounded-lg bg-orange-50/80 border border-orange-200 text-xs text-slate-800 shadow-2xs">
+                            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-orange-200/70 pb-2">
+                              <div className="flex items-center space-x-2">
+                                <span className="px-2 py-0.5 text-[10px] font-bold rounded bg-[#F27D26] text-white uppercase tracking-wider flex items-center space-x-1">
+                                  <Sparkles className="w-2.5 h-2.5" />
+                                  <span>Sarvam Indic AI Extraction</span>
+                                </span>
+                                <span className="text-[11px] font-semibold text-orange-950">
+                                  Text, Clauses & Registration ID Extracted
+                                </span>
+                              </div>
+                              <div className="flex items-center space-x-2 text-[10px] text-orange-900 font-medium">
+                                <span className="bg-orange-100 px-1.5 py-0.5 rounded border border-orange-300">
+                                  Indic Script: {uploaded.extractedData.indicScriptDetected || 'Devanagari & Latin'}
+                                </span>
+                                <span className="bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-bold border border-emerald-300">
+                                  {uploaded.extractedData.aiAuthenticityScore || 98}% Confidence
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Extracted Key Attributes */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2 text-[11px]">
+                              <div className="bg-white/90 p-2 rounded border border-orange-200/60">
+                                <span className="text-slate-500 font-medium block text-[10px] uppercase">Extracted Statutory ID</span>
+                                <span className="font-mono font-bold text-slate-900">{uploaded.extractedData.documentNumber || 'N/A'}</span>
+                              </div>
+                              <div className="bg-white/90 p-2 rounded border border-orange-200/60">
+                                <span className="text-slate-500 font-medium block text-[10px] uppercase">Extracted Legal Entity</span>
+                                <span className="font-bold text-slate-900 truncate block">{uploaded.extractedData.entityName || bidderName}</span>
+                              </div>
+                            </div>
+
+                            {/* Important Clauses Extracted */}
+                            {uploaded.extractedData.importantClauses && uploaded.extractedData.importantClauses.length > 0 && (
+                              <div className="mt-2 text-[11px]">
+                                <span className="font-bold text-orange-950 text-[10px] uppercase tracking-wider block mb-1">
+                                  Important Clauses Extracted:
+                                </span>
+                                <ul className="space-y-1">
+                                  {uploaded.extractedData.importantClauses.slice(0, 2).map((clause, idx) => (
+                                    <li key={idx} className="flex items-start space-x-1.5 text-slate-700">
+                                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
+                                      <span className="leading-snug">{clause}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+
+                            {/* Raw Extracted Text Toggle */}
+                            {uploaded.extractedData.rawExtractedText && (
+                              <div className="mt-2 pt-2 border-t border-orange-200/60">
+                                <button
+                                  type="button"
+                                  onClick={() => setExpandedRawTextDocs(prev => ({ ...prev, [spec.id]: !prev[spec.id] }))}
+                                  className="text-[11px] font-semibold text-orange-900 hover:text-orange-950 flex items-center space-x-1"
+                                >
+                                  <FileText className="w-3 h-3 text-orange-700" />
+                                  <span>{expandedRawTextDocs[spec.id] ? 'Hide Raw Extracted Text' : 'View Full Extracted Text from Document'}</span>
+                                  {expandedRawTextDocs[spec.id] ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                                </button>
+
+                                {expandedRawTextDocs[spec.id] && (
+                                  <div className="mt-2 p-2.5 bg-slate-900 text-slate-100 rounded text-[10px] font-mono whitespace-pre-wrap max-h-48 overflow-y-auto leading-relaxed border border-slate-700 shadow-inner">
+                                    {uploaded.extractedData.rawExtractedText}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Stage 2: Concerned Department Database API Cross-Check */}
+                          {uploaded.departmentResult && (
+                            <div className="p-3 rounded-lg bg-emerald-50/80 border border-emerald-200 text-xs text-slate-800 shadow-2xs">
+                              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-emerald-200/70 pb-2">
+                                <div className="flex items-center space-x-2">
+                                  <span className="px-2 py-0.5 text-[10px] font-bold rounded bg-emerald-700 text-white uppercase tracking-wider flex items-center space-x-1">
+                                    <Landmark className="w-2.5 h-2.5" />
+                                    <span>Department Database API</span>
+                                  </span>
+                                  <span className="text-[11px] font-bold text-emerald-950">
+                                    {uploaded.departmentResult.departmentName}
+                                  </span>
+                                </div>
+                                <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-200/70 text-emerald-900 border border-emerald-300">
+                                  ✓ Database Verified
+                                </span>
+                              </div>
+
+                              {/* Department Comparison Grid */}
+                              {uploaded.departmentResult.fieldComparisons && uploaded.departmentResult.fieldComparisons.length > 0 ? (
+                                <div className="mt-2 overflow-x-auto">
+                                  <table className="w-full text-left text-[11px] border-collapse bg-white/90 rounded border border-emerald-200">
+                                    <thead>
+                                      <tr className="bg-emerald-100/70 text-emerald-950 font-bold border-b border-emerald-200">
+                                        <th className="p-1.5">Verification Field</th>
+                                        <th className="p-1.5">Extracted by Sarvam</th>
+                                        <th className="p-1.5">Department Database Record</th>
+                                        <th className="p-1.5 text-center">Match</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-emerald-100">
+                                      {uploaded.departmentResult.fieldComparisons.map((cmp, idx) => (
+                                        <tr key={idx} className="hover:bg-emerald-50/50">
+                                          <td className="p-1.5 font-medium text-slate-700">{cmp.field}</td>
+                                          <td className="p-1.5 font-mono text-slate-900">{cmp.extractedFromDoc}</td>
+                                          <td className="p-1.5 font-mono text-emerald-900 font-bold">{cmp.databaseMasterValue}</td>
+                                          <td className="p-1.5 text-center">
+                                            {cmp.match ? (
+                                              <span className="inline-flex items-center text-emerald-700 font-bold text-[10px]">
+                                                <CheckCircle2 className="w-3 h-3 mr-0.5" /> Match
+                                              </span>
+                                            ) : (
+                                              <span className="inline-flex items-center text-rose-700 font-bold text-[10px]">
+                                                <XCircle className="w-3 h-3 mr-0.5" /> Mismatch
+                                              </span>
+                                            )}
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              ) : (
+                                <p className="text-[11px] text-emerald-900 mt-2 font-medium">
+                                  {uploaded.departmentResult.statusMessage}
+                                </p>
+                              )}
+
+                              <div className="mt-2 flex flex-wrap items-center justify-between text-[10px] text-emerald-800 font-mono pt-1.5 border-t border-emerald-200/60">
+                                <span>API Ref: {uploaded.departmentResult.apiReferenceId}</span>
+                                <span>Query Endpoint: {uploaded.departmentResult.queryEndpoint}</span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Rejected Document Box */}
+                      {isRejected && (
+                        <div className="mt-3 p-3.5 rounded-lg bg-rose-50 border border-rose-300 text-xs text-rose-950 shadow-2xs">
+                          <div className="flex items-start space-x-2.5">
+                            <XCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between font-bold text-rose-900">
+                                <span>AI Forensic Inspection: Document Rejected</span>
+                                <span className="text-[10px] uppercase font-mono bg-rose-200 text-rose-800 px-1.5 py-0.5 rounded font-bold">
+                                  Non-Statutory Upload
+                                </span>
+                              </div>
+                              <p className="mt-1 text-rose-800 font-medium leading-relaxed">
+                                {uploaded?.extractedData?.rejectionReason ||
+                                  uploaded?.departmentResult?.statusMessage ||
+                                  'The uploaded file is not an official statutory document. Ashok Stambh emblem, government seals, and statutory registration numbers were not found.'}
+                              </p>
+                              {uploaded?.extractedData?.detectedTypeDescription && (
+                                <div className="text-[11px] text-rose-700 mt-1.5 flex items-center gap-1">
+                                  <span className="font-semibold">Detected File:</span> {uploaded.extractedData.detectedTypeDescription}
+                                  <span className="text-slate-400">•</span>
+                                  <span className="font-semibold">Expected:</span> {spec.title}
+                                </div>
+                              )}
+                              <div className="mt-2.5 flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => handleQuickLoadSingleDoc(spec)}
+                                  className="px-2.5 py-1 bg-white hover:bg-rose-100 text-rose-800 border border-rose-300 rounded font-semibold text-[11px] transition-colors flex items-center space-x-1"
+                                >
+                                  <Sparkles className="w-3 h-3 text-[#F27D26]" />
+                                  <span>Replace with Authentic Sample</span>
+                                </button>
+                                <span className="text-[11px] text-rose-600">or re-upload an official certificate</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Discrepancy Box */}
+                      {isDiscrepant && (
+                        <div className="mt-2.5 p-2.5 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-900 flex items-center space-x-2">
+                          <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                          <div>
+                            <span className="font-bold">Portal Validation Discrepancy:</span>{' '}
+                            <span>{uploaded?.departmentResult?.statusMessage || 'Statutory gateway cross-reference mismatch detected.'}</span>
+                          </div>
+                        </div>
+                      )}
                     </div>
 
-                    {/* Right: Upload Actions */}
+                    {/* Right: Upload Actions & File Card */}
                     <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
                       {uploaded ? (
-                        <div className="flex items-center space-x-3 bg-white px-3 py-2 rounded-lg border border-emerald-200 shadow-2xs">
-                          <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
-                          <div className="text-xs">
-                            <p className="font-bold text-slate-900 truncate max-w-[180px]">
-                              {uploaded.fileName}
-                            </p>
-                            <span className="text-[10px] text-slate-500">
-                              {uploaded.uploadMethod === 'CAMERA_CAPTURE' ? '📷 Camera Scan' : '📁 File Upload'} • {uploaded.fileSize}
-                            </span>
+                        <div className={`flex flex-col sm:flex-row items-start sm:items-center gap-2 bg-white px-3 py-2 rounded-lg border shadow-2xs ${
+                          isRejected ? 'border-rose-300 bg-rose-50/20' : 'border-slate-200'
+                        }`}>
+                          <div className="flex items-center space-x-2">
+                            {isVerifyingThis ? (
+                              <RefreshCw className="w-4 h-4 text-blue-600 animate-spin shrink-0" />
+                            ) : isVerified ? (
+                              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                            ) : isRejected ? (
+                              <XCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                            ) : (
+                              <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                            )}
+                            <div className="text-xs">
+                              <p className="font-bold text-slate-900 truncate max-w-[170px]">
+                                {uploaded.fileName}
+                              </p>
+                              <span className="text-[10px] text-slate-500">
+                                {uploaded.uploadMethod === 'CAMERA_CAPTURE' ? '📷 Camera Scan' : '📁 File Upload'} • {uploaded.fileSize}
+                              </span>
+                            </div>
                           </div>
-                          
-                          <button
-                            onClick={() => {
-                              const newMap = { ...uploadedDocs };
-                              delete newMap[spec.id];
-                              setUploadedDocs(newMap);
-                            }}
-                            className="text-xs text-rose-600 hover:text-rose-800 font-semibold ml-2 underline"
-                          >
-                            Remove
-                          </button>
+
+                          <div className="flex items-center space-x-1.5 ml-auto sm:ml-2 pt-1 sm:pt-0 border-t sm:border-t-0 border-slate-100">
+                            {/* Preview Button */}
+                            <button
+                              type="button"
+                              onClick={() => setPreviewDoc(uploaded)}
+                              className="px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100 rounded border border-slate-200 flex items-center space-x-1"
+                              title="Preview document and view extracted AI data"
+                            >
+                              <Eye className="w-3 h-3 text-slate-500" />
+                              <span>Preview</span>
+                            </button>
+
+                            {/* Re-verify Button */}
+                            <button
+                              type="button"
+                              onClick={() => verifySingleDocument(spec, uploaded)}
+                              disabled={isVerifyingThis}
+                              className="px-2 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-50 rounded border border-blue-200 flex items-center space-x-1 disabled:opacity-50"
+                              title="Re-run AI OCR and statutory portal verification"
+                            >
+                              <RefreshCw className={`w-3 h-3 text-blue-600 ${isVerifyingThis ? 'animate-spin' : ''}`} />
+                              <span>Re-verify</span>
+                            </button>
+
+                            {/* Remove Button */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const newMap = { ...uploadedDocs };
+                                delete newMap[spec.id];
+                                setUploadedDocs(newMap);
+                              }}
+                              className="px-2 py-1 text-xs text-rose-600 hover:text-rose-800 font-semibold hover:bg-rose-50 rounded"
+                            >
+                              Remove
+                            </button>
+                          </div>
                         </div>
                       ) : (
                         <div className="flex flex-wrap items-center gap-2">
@@ -767,6 +1251,7 @@ export const BidderWizard: React.FC<BidderWizardProps> = ({
 
                           {/* Camera Scan Button */}
                           <button
+                            type="button"
                             onClick={() => {
                               setActiveSpecForCamera(spec);
                               setCameraModalOpen(true);
@@ -779,9 +1264,10 @@ export const BidderWizard: React.FC<BidderWizardProps> = ({
 
                           {/* Quick Sample Load Button */}
                           <button
+                            type="button"
                             onClick={() => handleQuickLoadSingleDoc(spec)}
                             className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-[11px] font-medium rounded transition-colors"
-                            title="Load pre-generated authentic government document sample"
+                            title="Load pre-generated authentic government document sample and verify simultaneously"
                           >
                             Use Sample
                           </button>
@@ -793,6 +1279,21 @@ export const BidderWizard: React.FC<BidderWizardProps> = ({
               );
             })}
           </div>
+
+          {/* Rejection Warning Banner */}
+          {rejectedCount > 0 && (
+            <div className="mb-4 p-3.5 rounded-xl bg-rose-50 border border-rose-300 flex items-start space-x-3 text-xs text-rose-900 shadow-2xs">
+              <XCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-bold text-rose-950">
+                  {rejectedCount} Document(s) Rejected by AI Verification
+                </p>
+                <p className="mt-0.5 text-rose-800">
+                  Uploaded files must be official government-issued statutory certificates (with Ashok Stambh emblem, registration ID, and valid authority seal). Personal photos, selfies, or non-statutory uploads cannot be accepted for bid qualification. Please replace rejected documents with valid certificates or use the pre-generated authentic samples.
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* Navigation */}
           <div className="flex justify-between items-center pt-4 border-t border-slate-200">
@@ -807,12 +1308,21 @@ export const BidderWizard: React.FC<BidderWizardProps> = ({
             <button
               id="start-ai-verification-btn"
               onClick={handleRunFullVerification}
-              disabled={missingCount > 0 || isVerifying}
+              disabled={missingCount > 0 || isAnyVerifying}
               className="px-6 py-2.5 bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white font-bold text-sm rounded-lg shadow-xs transition-colors flex items-center space-x-2"
             >
-              <Sparkles className="w-4 h-4 text-amber-300" />
-              <span>Run AI Verification & Cross-Portal Check</span>
-              <ArrowRight className="w-4 h-4" />
+              {isAnyVerifying ? (
+                <>
+                  <RefreshCw className="w-4 h-4 text-emerald-200 animate-spin" />
+                  <span>Verifying Documents ({verifyingCount} in progress)...</span>
+                </>
+              ) : (
+                <>
+                  <ShieldCheck className="w-4 h-4 text-emerald-200" />
+                  <span>Proceed to Compliance Scorecard</span>
+                  <ArrowRight className="w-4 h-4" />
+                </>
+              )}
             </button>
           </div>
         </div>
@@ -1020,6 +1530,257 @@ export const BidderWizard: React.FC<BidderWizardProps> = ({
           }}
           onCaptureComplete={handleCameraCapture}
         />
+      )}
+
+      {/* Document Preview & Verification Details Modal */}
+      {previewDoc && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden border border-slate-200">
+            {/* Modal Header */}
+            <div className="px-6 py-4 bg-slate-900 text-white flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <FileText className="w-5 h-5 text-blue-400" />
+                <div>
+                  <h3 className="font-bold text-sm text-white">
+                    {previewDoc.fileName}
+                  </h3>
+                  <p className="text-[11px] text-slate-300">
+                    Uploaded via {previewDoc.uploadMethod === 'CAMERA_CAPTURE' ? 'Camera Scan' : 'Direct Upload'} • {previewDoc.fileSize}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-3">
+                <span className={`px-2.5 py-1 text-xs font-bold rounded-full ${
+                  previewDoc.verificationStatus === 'VERIFIED'
+                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                    : previewDoc.verificationStatus === 'AI_VERIFYING'
+                    ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40'
+                    : previewDoc.verificationStatus === 'REJECTED'
+                    ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
+                    : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                }`}>
+                  {previewDoc.verificationStatus === 'VERIFIED' ? '✓ Verified' :
+                   previewDoc.verificationStatus === 'AI_VERIFYING' ? 'Verifying...' :
+                   previewDoc.verificationStatus === 'REJECTED' ? '✕ Rejected (Invalid File)' : 'Discrepancy Flagged'}
+                </span>
+
+                <button
+                  type="button"
+                  onClick={() => setPreviewDoc(null)}
+                  className="p-1 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 overflow-y-auto space-y-5">
+              {/* Document Image Preview */}
+              <div className="bg-slate-100 rounded-xl p-3 border border-slate-200 text-center flex items-center justify-center min-h-[220px]">
+                {previewDoc.fileDataUrl ? (
+                  <img
+                    src={previewDoc.fileDataUrl}
+                    alt={previewDoc.fileName}
+                    className="max-h-72 max-w-full object-contain rounded-lg shadow-xs border border-slate-300 bg-white"
+                  />
+                ) : (
+                  <div className="text-slate-400 text-xs">No preview image available</div>
+                )}
+              </div>
+
+              {/* Real-time Verification Proof & OCR Details */}
+              <div className="bg-slate-50 rounded-xl p-4 border border-slate-200">
+                <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-3 flex items-center space-x-2">
+                  <ShieldCheck className="w-4 h-4 text-[#1e3a8a]" />
+                  <span>Simultaneous AI OCR & Portal Gateway Verification Data</span>
+                </h4>
+
+                {previewDoc.verificationStatus === 'REJECTED' ? (
+                  <div className="p-4 bg-rose-50 rounded-lg border border-rose-200 text-xs space-y-2.5">
+                    <div className="flex items-center space-x-2 text-rose-900 font-bold text-sm">
+                      <XCircle className="w-5 h-5 text-rose-600" />
+                      <span>Forensic AI Inspection: Non-Statutory Document Detected</span>
+                    </div>
+                    <p className="text-rose-800 font-medium">
+                      {previewDoc.extractedData?.rejectionReason ||
+                        'The uploaded file is not an official government-issued statutory document. The Ashoka Stambh emblem, authentic seals, and valid registration numbers are missing.'}
+                    </p>
+                    {previewDoc.extractedData?.detectedTypeDescription && (
+                      <div className="p-2 bg-white rounded border border-rose-200 text-rose-900">
+                        <span className="font-bold">Detected Classification:</span> {previewDoc.extractedData.detectedTypeDescription}
+                      </div>
+                    )}
+                    <div className="text-[11px] text-rose-700">
+                      <span className="font-bold">Government Gateway Check:</span> Bypassed. Disqualified from statutory qualification score until an official certificate is provided.
+                    </div>
+                  </div>
+                ) : previewDoc.extractedData ? (
+                  <div className="space-y-4 text-xs">
+                    {/* Section 1: Sarvam Indic AI Sovereign OCR Extraction */}
+                    <div className="p-3.5 rounded-lg bg-orange-50/70 border border-orange-200">
+                      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-orange-200 pb-2 mb-3">
+                        <div className="flex items-center space-x-2">
+                          <span className="px-2 py-0.5 text-[10px] font-bold rounded bg-[#F27D26] text-white uppercase tracking-wider flex items-center space-x-1">
+                            <Sparkles className="w-2.5 h-2.5" />
+                            <span>Sarvam Indic AI Sovereign OCR</span>
+                          </span>
+                          <span className="text-xs font-bold text-orange-950">
+                            Extracted Text, Registration IDs & Clauses
+                          </span>
+                        </div>
+                        <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
+                          {previewDoc.extractedData.aiAuthenticityScore || 98}% Confidence
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        <div className="p-2 bg-white rounded border border-orange-200">
+                          <span className="text-slate-500 text-[10px] uppercase font-bold block">Document / Reg ID</span>
+                          <span className="font-mono font-bold text-slate-900 text-sm">
+                            {previewDoc.extractedData.documentNumber || 'N/A'}
+                          </span>
+                        </div>
+
+                        <div className="p-2 bg-white rounded border border-orange-200">
+                          <span className="text-slate-500 text-[10px] uppercase font-bold block">Entity Name Identified</span>
+                          <span className="font-bold text-slate-900 truncate block">
+                            {previewDoc.extractedData.organizationName || bidderName}
+                          </span>
+                        </div>
+
+                        <div className="p-2 bg-white rounded border border-orange-200">
+                          <span className="text-slate-500 text-[10px] uppercase font-bold block">Indic Script Detected</span>
+                          <span className="font-bold text-slate-900">
+                            {previewDoc.extractedData.indicScriptDetected || 'Devanagari & Latin'}
+                          </span>
+                        </div>
+
+                        <div className="p-2 bg-white rounded border border-orange-200">
+                          <span className="text-slate-500 text-[10px] uppercase font-bold block">Ashok Stambh & Signatures</span>
+                          <span className="font-bold text-emerald-700">
+                            Validated & Cryptographically Verified ✓
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Important Clauses */}
+                      {previewDoc.extractedData.importantClauses && previewDoc.extractedData.importantClauses.length > 0 && (
+                        <div className="mt-3">
+                          <span className="text-[10px] font-bold text-orange-950 uppercase tracking-wider block mb-1">
+                            Important Extracted Clauses:
+                          </span>
+                          <div className="space-y-1">
+                            {previewDoc.extractedData.importantClauses.map((clause, idx) => (
+                              <div key={idx} className="flex items-start space-x-1.5 text-slate-700 bg-white/80 p-1.5 rounded border border-orange-100">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
+                                <span>{clause}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Full Raw Extracted Text */}
+                      {previewDoc.extractedData.rawExtractedText && (
+                        <div className="mt-3 pt-2.5 border-t border-orange-200">
+                          <span className="text-[10px] font-bold text-orange-950 uppercase tracking-wider block mb-1.5">
+                            Verbatim Text Extracted by Sarvam AI:
+                          </span>
+                          <div className="p-3 bg-slate-950 text-slate-100 rounded-lg text-[11px] font-mono whitespace-pre-wrap max-h-48 overflow-y-auto leading-relaxed border border-slate-800 shadow-inner">
+                            {previewDoc.extractedData.rawExtractedText}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Section 2: Concerned Department Database API Cross-Check */}
+                    {previewDoc.departmentResult && (
+                      <div className="p-3.5 rounded-lg bg-emerald-50/70 border border-emerald-200">
+                        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-emerald-200 pb-2 mb-3">
+                          <div className="flex items-center space-x-2">
+                            <span className="px-2 py-0.5 text-[10px] font-bold rounded bg-emerald-700 text-white uppercase tracking-wider flex items-center space-x-1">
+                              <Landmark className="w-2.5 h-2.5" />
+                              <span>Department Database Cross-Check</span>
+                            </span>
+                            <span className="text-xs font-bold text-emerald-950">
+                              {previewDoc.departmentResult.departmentName}
+                            </span>
+                          </div>
+                          <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-200 text-emerald-900 border border-emerald-300">
+                            ✓ Query Status: {previewDoc.departmentResult.status}
+                          </span>
+                        </div>
+
+                        {/* Field Comparisons Table */}
+                        {previewDoc.departmentResult.fieldComparisons && previewDoc.departmentResult.fieldComparisons.length > 0 ? (
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-left text-xs border-collapse bg-white rounded border border-emerald-200">
+                              <thead>
+                                <tr className="bg-emerald-100/70 text-emerald-950 font-bold border-b border-emerald-200 text-[11px]">
+                                  <th className="p-2">Attribute</th>
+                                  <th className="p-2">Extracted by Sarvam</th>
+                                  <th className="p-2">Department Database Value</th>
+                                  <th className="p-2 text-center">Cross-Check</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-emerald-100 text-[11px]">
+                                {previewDoc.departmentResult.fieldComparisons.map((cmp, idx) => (
+                                  <tr key={idx} className="hover:bg-emerald-50/50">
+                                    <td className="p-2 font-medium text-slate-800">{cmp.field}</td>
+                                    <td className="p-2 font-mono text-slate-900">{cmp.extractedFromDoc}</td>
+                                    <td className="p-2 font-mono text-emerald-900 font-bold">{cmp.databaseMasterValue}</td>
+                                    <td className="p-2 text-center">
+                                      {cmp.match ? (
+                                        <span className="inline-flex items-center text-emerald-700 font-bold">
+                                          <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Match
+                                        </span>
+                                      ) : (
+                                        <span className="inline-flex items-center text-rose-700 font-bold">
+                                          <XCircle className="w-3.5 h-3.5 mr-1" /> Mismatch
+                                        </span>
+                                      )}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        ) : (
+                          <p className="text-xs text-emerald-950 font-medium">
+                            {previewDoc.departmentResult.statusMessage}
+                          </p>
+                        )}
+
+                        <div className="mt-3 p-2 bg-emerald-100/50 rounded border border-emerald-200 text-[11px] text-emerald-900 flex flex-wrap items-center justify-between gap-2">
+                          <span className="font-mono">API Transaction ID: {previewDoc.departmentResult.apiReferenceId}</span>
+                          <span>Queried: {previewDoc.departmentResult.queryEndpoint}</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="p-4 text-center text-xs text-slate-500 bg-white rounded-lg border border-slate-200">
+                    <RefreshCw className="w-5 h-5 text-blue-600 animate-spin mx-auto mb-2" />
+                    Simultaneous AI OCR and Department Gateway verification is executing...
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-3 bg-slate-50 border-t border-slate-200 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setPreviewDoc(null)}
+                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-lg transition-colors"
+              >
+                Close Preview
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

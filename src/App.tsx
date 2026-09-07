@@ -19,8 +19,6 @@ import { GovernmentHeader } from './components/GovernmentHeader';
 import { LoginPage } from './components/LoginPage';
 import { BidderWizard } from './components/BidderWizard';
 import { OfficerDashboard } from './components/OfficerDashboard';
-import { AuditTrailView } from './components/AuditTrailView';
-import { TenderManagementModal } from './components/TenderManagementModal';
 import { postAuditLog, postNotification, fetchLiveNotifications } from './services/apiService';
 import { Shield, ExternalLink, HelpCircle } from 'lucide-react';
 
@@ -38,7 +36,7 @@ export default function App() {
     return null;
   });
 
-  const [currentView, setCurrentView] = useState<'OFFICER' | 'BIDDER' | 'AUDIT'>('OFFICER');
+  const [currentView, setCurrentView] = useState<'OFFICER' | 'BIDDER'>('OFFICER');
   const [tenders, setTenders] = useState<Tender[]>(INITIAL_TENDERS);
   const [submissions, setSubmissions] = useState<BidderSubmission[]>(INITIAL_SUBMISSIONS);
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>(INITIAL_AUDIT_LOGS);
@@ -90,9 +88,6 @@ export default function App() {
     } catch {}
   };
 
-  // Modals
-  const [isTenderModalOpen, setIsTenderModalOpen] = useState(false);
-
   // Synchronize view with user role on login
   const handleLogin = (user: AuthUser) => {
     setCurrentUser(user);
@@ -115,16 +110,6 @@ export default function App() {
       localStorage.removeItem('gem_auth_user');
     } catch {
       // Ignore
-    }
-  };
-
-  // Quick switch role between Officer and Bidder for testing
-  const handleSwitchRole = () => {
-    if (!currentUser) return;
-    if (currentUser.role === 'PROCUREMENT_OFFICER') {
-      handleLogin(DEMO_BIDDER_USER);
-    } else {
-      handleLogin(DEMO_OFFICER_USER);
     }
   };
 
@@ -323,7 +308,6 @@ export default function App() {
         onResetMagnification={handleResetMagnification}
         currentUser={currentUser}
         onLogout={handleLogout}
-        onSwitchRole={handleSwitchRole}
       />
 
       {/* 2. Main Body Content Switcher - Strictly Role Segregated */}
@@ -333,7 +317,6 @@ export default function App() {
           <OfficerDashboard
             tenders={tenders}
             submissions={submissions}
-            onOpenTenderModal={() => setIsTenderModalOpen(true)}
             onRecordOfficerDecision={handleRecordOfficerDecision}
             language={language}
           />
@@ -345,14 +328,7 @@ export default function App() {
             tenders={tenders}
             onSubmitBid={handleSubmitBid}
             language={language}
-          />
-        )}
-
-        {/* Officer Only: Audit Trail & Tamper-Evident Verification Logs */}
-        {currentUser.role === 'PROCUREMENT_OFFICER' && currentView === 'AUDIT' && (
-          <AuditTrailView
-            logs={auditLogs}
-            language={language}
+            currentUser={currentUser}
           />
         )}
       </main>
@@ -436,15 +412,6 @@ export default function App() {
           </div>
         </div>
       </footer>
-
-      {/* Tender Configuration Modal */}
-      {isTenderModalOpen && (
-        <TenderManagementModal
-          isOpen={isTenderModalOpen}
-          onClose={() => setIsTenderModalOpen(false)}
-          onSaveTender={handleSaveTender}
-        />
-      )}
     </div>
   );
 }
