@@ -1,0 +1,6 @@
+{
+  "name": "GeM Bid Compliance Verification Portal",
+  "description": "AI-powered integrated bid compliance verification platform for GeM procurement with multi-portal checks, Sarvam AI Indic OCR extraction, signature verification, rule engine scoring, and officer audit dashboard.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
