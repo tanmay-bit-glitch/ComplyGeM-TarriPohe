@@ -13,8 +13,8 @@ import {
 import { AuthUser } from '../types';
 
 interface GovernmentHeaderProps {
-  currentView?: 'OFFICER' | 'BIDDER';
-  onSelectView?: (view: 'OFFICER' | 'BIDDER') => void;
+  currentView?: 'HOME' | 'OFFICER' | 'BIDDER';
+  onSelectView?: (view: 'HOME' | 'OFFICER' | 'BIDDER') => void;
   language: 'EN' | 'HI';
   onToggleLanguage: () => void;
   magnification: number;
@@ -26,6 +26,8 @@ interface GovernmentHeaderProps {
 }
 
 export const GovernmentHeader: React.FC<GovernmentHeaderProps> = ({
+  currentView = 'OFFICER',
+  onSelectView,
   language,
   onToggleLanguage,
   magnification,
@@ -153,7 +155,11 @@ export const GovernmentHeader: React.FC<GovernmentHeaderProps> = ({
       <div className="bg-[#002B5B] border-b-4 border-[#F27D26] shadow-md text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex flex-col md:flex-row justify-between items-center gap-4">
           {/* Left: National Emblem & GeM Title */}
-          <div className="flex items-center space-x-3.5">
+          <div 
+            onClick={() => onSelectView?.('HOME')}
+            className={`flex items-center space-x-3.5 ${onSelectView ? 'cursor-pointer hover:opacity-95 transition-opacity' : ''}`}
+            title="Go to GeM Portal Home"
+          >
             {/* White Emblem Tile */}
             <div className="w-11 h-11 bg-white rounded-lg flex flex-col items-center justify-center p-1 shadow-xs shrink-0">
               <span className="text-xl leading-none">🏛️</span>
@@ -184,8 +190,22 @@ export const GovernmentHeader: React.FC<GovernmentHeaderProps> = ({
             </div>
           </div>
 
-          {/* Right: User Profile Dropdown Menu */}
-          <div className="relative" ref={profileMenuRef}>
+          {/* Right: Navigation & User Profile Dropdown Menu */}
+          <div className="flex items-center space-x-2.5">
+            {onSelectView && (
+              <button
+                id="header-nav-home-btn"
+                type="button"
+                onClick={() => onSelectView('HOME')}
+                className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-blue-900/60 hover:bg-blue-800 text-blue-100 hover:text-white border border-blue-700/60 text-xs font-semibold transition-colors shadow-2xs"
+                title="Return to GeM Home Page"
+              >
+                <span>🏠</span>
+                <span>{language === 'HI' ? 'होम पेज' : 'GeM Home'}</span>
+              </button>
+            )}
+
+            <div className="relative" ref={profileMenuRef}>
             {/* Interactive Profile Trigger Button - Avatar Icon Only */}
             <button
               id="header-user-profile-menu-btn"
@@ -282,7 +302,30 @@ export const GovernmentHeader: React.FC<GovernmentHeaderProps> = ({
                 </div>
 
                 {/* Dropdown Menu Actions */}
-                <div className="p-2">
+                <div className="p-2 space-y-1">
+                  {onSelectView && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsProfileMenuOpen(false);
+                        onSelectView('HOME');
+                      }}
+                      className="w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-lg text-slate-700 hover:bg-blue-50 hover:text-blue-950 transition-colors group text-left"
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-blue-100 group-hover:bg-blue-200 flex items-center justify-center text-blue-900 shrink-0 transition-colors text-sm font-bold">
+                        🏛️
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-bold leading-tight">
+                          {language === 'HI' ? 'GeM मुख्य पृष्ठ (Home)' : 'GeM Portal Home'}
+                        </p>
+                        <p className="text-[10px] text-slate-500 leading-tight mt-0.5">
+                          {language === 'HI' ? 'सार्वजनिक निविदा सूची एवं मुख्य पोर्टल' : 'Browse active public tenders'}
+                        </p>
+                      </div>
+                    </button>
+                  )}
+
                   <button
                     id="dropdown-logout-btn"
                     type="button"
@@ -307,6 +350,7 @@ export const GovernmentHeader: React.FC<GovernmentHeaderProps> = ({
                 </div>
               </div>
             )}
+            </div>
           </div>
         </div>
       </div>

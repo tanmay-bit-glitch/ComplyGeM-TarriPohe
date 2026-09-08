@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Tender, 
   RequiredDocumentSpec, 
@@ -6,7 +6,9 @@ import {
   BidderSubmission, 
   ComplianceScorecard, 
   DocumentType,
-  AuthUser
+  AuthUser,
+  Step1CrossCheckResult,
+  VerificationStatus
 } from '../types';
 import { CameraCaptureModal } from './CameraCaptureModal';
 import { generateSampleDocumentDataUrl } from '../utils/sampleDocumentGenerator';
@@ -34,7 +36,10 @@ import {
   Landmark,
   ChevronDown,
   ChevronUp,
-  X
+  X,
+  Lock,
+  Hash,
+  AlertCircle
 } from 'lucide-react';
 
 interface BidderWizardProps {
@@ -42,16 +47,106 @@ interface BidderWizardProps {
   onSubmitBid: (submission: BidderSubmission) => void;
   language: 'EN' | 'HI';
   currentUser?: AuthUser;
+  initialTenderId?: string;
 }
+
+// 4 Synthetic Hackathon Bidder Profiles for 1-Click Auto-Fill
+const HACKATHON_AUTOFILL_COMPANIES = [
+  {
+    id: 'acme-tech',
+    shortName: 'Acme Technology',
+    fullName: 'Acme Technology Solutions Private Limited',
+    email: 'aarav.mehta@acmetech.demo',
+    phone: '+91 11 4901 1001',
+    pan: 'AACCA1001A',
+    gstin: '07AACCA1001A1Z0',
+    udyam: 'UDYAM-DL-00-0001001',
+    cin: 'U62010DL2022PTC400001',
+    state: 'Delhi',
+    enterpriseType: 'SMALL' as const,
+    localContent: 82,
+    defaultTenderId: 'GEM-DEMO-IT-1001',
+    tenderName: 'GEM-DEMO-IT-1001 (IT Services, ₹50L)',
+    badge: '1. Valid Known (COMPLIANT)',
+    tagColor: 'emerald',
+    notes: '1. Valid known company → extraction → cross-match → mock verification → rules → score → COMPLIANT',
+  },
+  {
+    id: 'beta-systems',
+    shortName: 'Beta Systems',
+    fullName: 'Beta Systems Private Limited',
+    email: 'kabir.shah@betasystems.demo',
+    phone: '+91 22 6811 2002',
+    pan: 'AACCB2002B',
+    gstin: '27AACCB2002B1Z1',
+    udyam: 'UDYAM-MH-01-0002002',
+    cin: 'U72900MH2021PTC400002',
+    state: 'Maharashtra',
+    enterpriseType: 'MEDIUM' as const,
+    localContent: 45,
+    defaultTenderId: 'GEM-DEMO-MED-2002',
+    tenderName: 'GEM-DEMO-MED-2002 (Medical, ₹1.2Cr)',
+    badge: '2. Expired Doc (NON-COMPLIANT)',
+    tagColor: 'amber',
+    notes: '2. Expired document → extraction finds date past validity → rules penalize/fail → NON-COMPLIANT',
+  },
+  {
+    id: 'gamma-infra',
+    shortName: 'Gamma Infrastructure',
+    fullName: 'Gamma Infrastructure Projects Private Limited',
+    email: 'dev.malhotra@gammainfra.demo',
+    phone: '+91 80 4122 3003',
+    pan: 'AACCG3003C',
+    gstin: '29AACCG3003C1Z2',
+    udyam: '',
+    cin: 'U45200KA2018PTC110003',
+    state: 'Karnataka',
+    enterpriseType: 'LARGE' as const,
+    localContent: 65,
+    defaultTenderId: 'GEM-DEMO-CON-2001',
+    tenderName: 'GEM-DEMO-CON-2001 (Civil Works, ₹15 Cr)',
+    badge: '3. Doc Mismatch (NEEDS REVIEW)',
+    tagColor: 'amber',
+    notes: '3. Known company with one mismatched document (Bank Solvency issued to affiliate) → cross-document mismatch → NEEDS REVIEW',
+  },
+  {
+    id: 'delta-meddevices',
+    shortName: 'Delta MedDevices',
+    fullName: 'Delta MedDevices Private Limited',
+    email: 'ishita.iyer@deltamed.demo',
+    phone: '+91 44 2855 4004',
+    pan: 'AACCD4004D',
+    gstin: '33AACCD4004D1Z3',
+    udyam: 'UDYAM-TN-00-0004004',
+    cin: 'U33110TN2024PTC150004',
+    state: 'Tamil Nadu',
+    enterpriseType: 'STARTUP' as const,
+    localContent: 68,
+    defaultTenderId: 'GEM-DEMO-MED-3001',
+    tenderName: 'GEM-DEMO-MED-3001 (Medical Devices, ₹1.8 Cr)',
+    badge: '4. Rule Failure (NON-COMPLIANT)',
+    tagColor: 'rose',
+    notes: '4. Known verified company that fails tender requirement (Audited Turnover ₹35L vs ₹54L mandatory) → NON-COMPLIANT',
+  },
+];
 
 export const BidderWizard: React.FC<BidderWizardProps> = ({
   tenders,
   onSubmitBid,
   language,
   currentUser,
+  initialTenderId,
 }) => {
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4>(1);
-  const [selectedTenderId, setSelectedTenderId] = useState<string>(tenders[0]?.id || '');
+  const [selectedTenderId, setSelectedTenderId] = useState<string>(
+    initialTenderId || tenders[0]?.id || ''
+  );
+
+  useEffect(() => {
+    if (initialTenderId) {
+      setSelectedTenderId(initialTenderId);
+    }
+  }, [initialTenderId]);
   
   // Bidder Form Info
   const [bidderName, setBidderName] = useState('Himalayan Defence & Agro Machines Pvt Ltd');
@@ -64,6 +159,182 @@ export const BidderWizard: React.FC<BidderWizardProps> = ({
   const [registeredState, setRegisteredState] = useState('Jammu and Kashmir');
   const [enterpriseType, setEnterpriseType] = useState<'MICRO' | 'SMALL' | 'MEDIUM' | 'LARGE' | 'STARTUP'>('SMALL');
   const [declaredLocalContentPercent, setDeclaredLocalContentPercent] = useState<number>(68);
+  const [autoFilledCompanyId, setAutoFilledCompanyId] = useState<string | null>(null);
+
+  // Step 1 Declared Profile Memory (persisted and remembered across Step 1 and Step 2)
+  const rememberedStep1 = useMemo(() => ({
+    bidderName: bidderName.trim(),
+    bidderEmail: bidderEmail.trim(),
+    bidderPhone: bidderPhone.trim(),
+    panNumber: panNumber.trim().toUpperCase(),
+    gstinNumber: gstinNumber.trim().toUpperCase(),
+    udyamNumber: udyamNumber.trim().toUpperCase(),
+    cinNumber: cinNumber.trim().toUpperCase(),
+    registeredState: registeredState.trim(),
+    enterpriseType,
+    declaredLocalContentPercent,
+  }), [
+    bidderName,
+    bidderEmail,
+    bidderPhone,
+    panNumber,
+    gstinNumber,
+    udyamNumber,
+    cinNumber,
+    registeredState,
+    enterpriseType,
+    declaredLocalContentPercent,
+  ]);
+
+  // Normalize company names to compare core legal entities reliably
+  const normalizeCompanyName = (name: string): string => {
+    return (name || '')
+      .toLowerCase()
+      .replace(/\b(private limited|pvt ltd|pvt\. ltd\.|limited|ltd|ltd\.|llp|solutions|technologies|projects|devices)\b/g, '')
+      .replace(/[^a-z0-9]/g, '')
+      .trim();
+  };
+
+  // Statutory Identifier Length & Syntax Validation (Pre-API Check)
+  const validateIdentifierSyntax = (
+    docType: string,
+    id: string
+  ): { isValid: boolean; status: 'INVALID_NO' | 'VALID'; message?: string } => {
+    if (!id || !id.trim()) {
+      return {
+        isValid: false,
+        status: 'INVALID_NO',
+        message: 'Invalid Number: No statutory registration identifier detected on the uploaded document.',
+      };
+    }
+
+    const clean = id.trim().toUpperCase();
+
+    if (docType === 'PAN') {
+      if (clean.length < 10) {
+        return {
+          isValid: false,
+          status: 'INVALID_NO',
+          message: `Invalid Number: PAN is too short (${clean.length} characters, expected exactly 10 alphanumeric characters).`,
+        };
+      }
+      if (clean.length > 10) {
+        return {
+          isValid: false,
+          status: 'INVALID_NO',
+          message: `Invalid Number: PAN is too long (${clean.length} characters, expected exactly 10 alphanumeric characters).`,
+        };
+      }
+      if (!/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(clean)) {
+        return {
+          isValid: false,
+          status: 'INVALID_NO',
+          message: `Invalid Number: PAN format violation (expected 5 letters, 4 digits, 1 letter, e.g. AACCA1001A).`,
+        };
+      }
+    } else if (docType === 'GSTIN') {
+      if (clean.length < 15) {
+        return {
+          isValid: false,
+          status: 'INVALID_NO',
+          message: `Invalid Number: GSTIN is too short (${clean.length} characters, expected exactly 15 characters).`,
+        };
+      }
+      if (clean.length > 15) {
+        return {
+          isValid: false,
+          status: 'INVALID_NO',
+          message: `Invalid Number: GSTIN is too long (${clean.length} characters, expected exactly 15 characters).`,
+        };
+      }
+      if (!/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/.test(clean)) {
+        return {
+          isValid: false,
+          status: 'INVALID_NO',
+          message: `Invalid Number: GSTIN format violation (expected 2-digit state code + 10-char PAN + 1 entity + Z + 1 check).`,
+        };
+      }
+    } else if (docType === 'MCA_COI') {
+      if (clean.length < 21) {
+        return {
+          isValid: false,
+          status: 'INVALID_NO',
+          message: `Invalid Number: Corporate Identification Number (CIN) is too short (${clean.length} characters, expected 21 characters).`,
+        };
+      }
+      if (clean.length > 21) {
+        return {
+          isValid: false,
+          status: 'INVALID_NO',
+          message: `Invalid Number: Corporate Identification Number (CIN) is too long (${clean.length} characters, expected 21 characters).`,
+        };
+      }
+      if (!/^[LU][0-9]{5}[A-Z]{2}[0-9]{4}[A-Z]{3}[0-9]{6}$/.test(clean)) {
+        return {
+          isValid: false,
+          status: 'INVALID_NO',
+          message: `Invalid Number: CIN format violation (expected 21-character MCA21 ROC format).`,
+        };
+      }
+    } else if (docType === 'UDYAM') {
+      if (!clean.startsWith('UDYAM-')) {
+        return {
+          isValid: false,
+          status: 'INVALID_NO',
+          message: `Invalid Number: MSME Udyam registration must begin with "UDYAM-".`,
+        };
+      }
+      if (clean.length < 18) {
+        return {
+          isValid: false,
+          status: 'INVALID_NO',
+          message: `Invalid Number: Udyam identifier is too short (${clean.length} characters, expected e.g. UDYAM-DL-00-0001001).`,
+        };
+      }
+      if (clean.length > 22) {
+        return {
+          isValid: false,
+          status: 'INVALID_NO',
+          message: `Invalid Number: Udyam identifier is too long (${clean.length} characters).`,
+        };
+      }
+    } else if (docType === 'CA_TURNOVER_CERT') {
+      if (!clean.startsWith('MOCK-UDIN') && clean.replace(/[^0-9]/g, '').length !== 18) {
+        if (clean.length < 10) {
+          return {
+            isValid: false,
+            status: 'INVALID_NO',
+            message: `Invalid Number: ICAI UDIN is too short (${clean.length} characters, expected 18-digit unique number).`,
+          };
+        }
+      }
+    }
+
+    return { isValid: true, status: 'VALID' };
+  };
+
+  // 1-Click AutoFill Handler for 4 Hackathon Companies
+  const handleAutoFillCompany = (companyId: string) => {
+    const comp = HACKATHON_AUTOFILL_COMPANIES.find(c => c.id === companyId);
+    if (!comp) return;
+
+    setAutoFilledCompanyId(comp.id);
+    setBidderName(comp.fullName);
+    setBidderEmail(comp.email);
+    setBidderPhone(comp.phone);
+    setPanNumber(comp.pan);
+    setGstinNumber(comp.gstin);
+    setUdyamNumber(comp.udyam);
+    setCinNumber(comp.cin);
+    setRegisteredState(comp.state);
+    setEnterpriseType(comp.enterpriseType);
+    setDeclaredLocalContentPercent(comp.localContent);
+
+    // Auto-select corresponding tender
+    if (comp.defaultTenderId && tenders.some(t => t.id === comp.defaultTenderId)) {
+      setSelectedTenderId(comp.defaultTenderId);
+    }
+  };
 
   // Auto-sync with currentUser when logged in as a specific bidder
   useEffect(() => {
@@ -114,18 +385,37 @@ export const BidderWizard: React.FC<BidderWizardProps> = ({
   const currentTender = tenders.find(t => t.id === selectedTenderId) || tenders[0];
 
   // Simultaneous Single Document Verification Routine:
-  // Step 1: Extract important text, registration IDs, and clauses with Sarvam Indic AI
-  // Step 2: Transmit extracted text to concerned department API database for verification
-  const verifySingleDocument = async (spec: RequiredDocumentSpec, doc: SubmittedDocument) => {
+  // Phase 1: Extract important text, registration IDs, and clauses with Sarvam Indic AI (No API call)
+  // Phase 2: Validate identifier length & format. If invalid length/syntax -> mark as INVALID_NO and halt without API call
+  // Phase 3: Transmit extracted text to concerned statutory department API database for verification
+  //          If not found in registry -> mark as NOT_AVAILABLE
+  //          If statutory fields do not match -> mark as NOT_VERIFIED
+  // Phase 4: ONLY AFTER BEING VERIFIED AGAINST API (status === 'MATCHED'):
+  //          Cross-match Step 1 declared details (Legal Name, PAN, GSTIN, UDYAM, CIN, State, MII %) against verified details
+  //          If any declared field does not match -> mark DISCREPANCY_FLAGGED with step1CrossCheck
+  const verifySingleDocument = async (
+    spec: RequiredDocumentSpec,
+    doc: SubmittedDocument,
+    companyOverride?: (typeof HACKATHON_AUTOFILL_COMPANIES)[number]
+  ) => {
     const specId = spec.id;
+    const targetEntityName = companyOverride?.fullName || bidderName;
+    const targetPan = companyOverride?.pan || panNumber;
+    const targetGstin = companyOverride?.gstin || gstinNumber;
+    const targetUdyam = companyOverride?.udyam || udyamNumber;
+    const targetCin = companyOverride?.cin || cinNumber;
+
+    // Set initial phase: Sarvam Indic AI Extraction (strictly before any API calls)
     setDocVerifyingStages(prev => ({
       ...prev,
-      [specId]: 'Sarvam Indic AI: Extracting text, registration identifiers & statutory clauses...',
+      [specId]: 'Phase 1 (Sarvam Indic AI): Extracting text, registration identifiers & statutory clauses (No API query)...',
     }));
 
     try {
-      // Step 1: AI OCR Extraction & Forensic Inspection via Sarvam Sovereign Engine
-      const extracted = await extractDocumentWithAI(spec.type, doc.fileName, doc.fileDataUrl, 'SARVAM', bidderName);
+      // ----------------------------------------------------
+      // PHASE 1: SARVAM INDIC AI OCR & FORENSIC EXTRACTION
+      // ----------------------------------------------------
+      const extracted = await extractDocumentWithAI(spec.type, doc.fileName, doc.fileDataUrl, 'SARVAM', targetEntityName);
 
       // Check if document was rejected as a personal photo or invalid non-document
       if (extracted.isValidDocument === false || extracted.verificationStatus === 'REJECTED') {
@@ -158,7 +448,6 @@ export const BidderWizard: React.FC<BidderWizardProps> = ({
           message: rejectionMsg,
           type: 'ALERT',
         });
-
         return;
       }
 
@@ -184,63 +473,330 @@ export const BidderWizard: React.FC<BidderWizardProps> = ({
               apiReferenceId: `DISC-${Date.now().toString(36).toUpperCase()}`,
               statusMessage: discMsg,
             },
-            verificationStatus: 'DISCREPANCY_FLAGGED',
+            verificationStatus: 'NOT_VERIFIED',
           },
         }));
         return;
       }
 
+      // ----------------------------------------------------
+      // PHASE 2: STATUTORY IDENTIFIER LENGTH & SYNTAX CHECK
+      // ----------------------------------------------------
+      const rawExtractedId = (extracted.documentNumber || '').trim();
+      const syntaxCheck = validateIdentifierSyntax(spec.type, rawExtractedId);
+
+      if (!syntaxCheck.isValid) {
+        const invalidMsg = syntaxCheck.message || `Invalid Number: Extracted identifier "${rawExtractedId}" violates statutory length or format requirements.`;
+
+        setUploadedDocs(prev => ({
+          ...prev,
+          [specId]: {
+            ...doc,
+            extractedData: extracted,
+            departmentResult: {
+              departmentCode: spec.type,
+              departmentName: spec.departmentAuthority,
+              queryEndpoint: 'https://gateway.digitalindia.gov.in/v1/verify',
+              queriedIdentifier: rawExtractedId || 'INVALID_IDENTIFIER',
+              queryTimestamp: new Date().toISOString(),
+              status: 'INVALID_NO',
+              verifiedAttributes: {},
+              apiReferenceId: `INV-${Date.now().toString(36).toUpperCase()}`,
+              statusMessage: invalidMsg,
+            },
+            verificationStatus: 'INVALID_NO',
+          },
+        }));
+
+        postNotification({
+          title: `Invalid Number: ${spec.title}`,
+          message: invalidMsg,
+          type: 'ALERT',
+        });
+        return; // HALT HERE: Do NOT call department API if ID length is invalid
+      }
+
+      // ----------------------------------------------------
+      // PHASE 3: STATUTORY GATEWAY API QUERY & FIELD MATCH
+      // ----------------------------------------------------
       setDocVerifyingStages(prev => ({
         ...prev,
-        [specId]: `Transmitting extracted text & ID to ${spec.departmentAuthority} API database...`,
+        [specId]: `Phase 2 (Department API): Transmitting extracted text & ID to ${spec.departmentAuthority} database...`,
       }));
 
       // Brief delay to make the live gateway verification visible
-      await new Promise(resolve => setTimeout(resolve, 600));
+      await new Promise(resolve => setTimeout(resolve, 500));
 
-      // Step 2: Department statutory gateway query using Sarvam-extracted text and identifiers
       let deptCode = 'STATUTORY_GATEWAY';
-      let queryId = extracted?.documentNumber || panNumber;
+      let queryId = rawExtractedId || targetPan;
 
       if (spec.type === 'UDYAM') {
         deptCode = 'MSME_UDYAM';
-        queryId = extracted?.documentNumber || udyamNumber || 'UDYAM-MH-12-0048921';
+        queryId = rawExtractedId || targetUdyam || '';
       } else if (spec.type === 'GSTIN') {
         deptCode = 'GSTN';
-        queryId = extracted?.documentNumber || gstinNumber || '27AAACB1234D1Z5';
+        queryId = rawExtractedId || targetGstin || '';
       } else if (spec.type === 'PAN') {
         deptCode = 'INCOME_TAX_PAN';
-        queryId = extracted?.documentNumber || panNumber || 'AAACB1234D';
+        queryId = rawExtractedId || targetPan || '';
       } else if (spec.type === 'DEBARMENT_AFFIDAVIT') {
         deptCode = 'CPPP_DEBARMENT';
-        queryId = bidderName;
+        queryId = extracted.entityName || targetEntityName;
       } else if (spec.type === 'EPFO') {
         deptCode = 'EPFO_ESIC';
-        queryId = extracted?.documentNumber || 'MH/BAN/0049210/000';
+        queryId = rawExtractedId || 'MH/BAN/0049210/000';
       } else if (spec.type === 'MAKE_IN_INDIA') {
         deptCode = 'MAKE_IN_INDIA';
-        queryId = extracted?.documentNumber || 'MII-DECL-2026-894';
+        queryId = rawExtractedId || 'MII-DECL-2026-894';
       } else if (spec.type === 'OEM_AUTH') {
         deptCode = 'OEM_AUTH';
-        queryId = extracted?.documentNumber || 'MAF-OEM-2026-9921';
+        queryId = rawExtractedId || 'MAF-OEM-2026-9921';
+      } else if (spec.type === 'MCA_COI') {
+        deptCode = 'MCA21_ROC';
+        queryId = rawExtractedId || targetCin || 'U62010DL2022PTC400001';
+      } else if (spec.type === 'DSC_DECLARATION') {
+        deptCode = 'CCA_DSC';
+        queryId = extracted.signatoryName || targetEntityName;
+      } else if (spec.type === 'CA_TURNOVER_CERT') {
+        deptCode = 'ICAI_UDIN';
+        queryId = rawExtractedId || 'MOCK-UDIN-ACME-001';
+      } else if (spec.type === 'BANK_DETAILS') {
+        deptCode = 'PFMS_BANK';
+        queryId = rawExtractedId || 'DMNB0001001';
+      } else if (spec.type === 'BIS_CERT') {
+        deptCode = 'BIS_REGISTRY';
+        queryId = rawExtractedId || 'BIS-DEMO-DELTA-4004';
+      } else if (spec.type === 'QUALITY_CERT_ISO') {
+        deptCode = 'ISO_QCI';
+        queryId = rawExtractedId || 'ISO-DEMO-ACME-1001';
+      } else if (spec.type === 'BANK_SOLVENCY' || spec.type === 'EMD_PROOF') {
+        deptCode = 'BANK_SOLVENCY_BG';
+        queryId = rawExtractedId || 'MOCK-BG-GAMMA-3003';
+      } else if (spec.type === 'EXPERIENCE_CERT') {
+        deptCode = 'GEM_WORK_ORDER';
+        queryId = extracted.entityName || targetEntityName;
+      } else if (spec.type === 'INTEGRITY_PACT') {
+        deptCode = 'INTEGRITY_PACT';
+        queryId = rawExtractedId || `IP-CVC-${targetPan.slice(0, 5)}-2026`;
       }
 
       const deptResult = await queryDepartmentGateway(
         deptCode,
         queryId,
-        bidderName,
+        extracted.entityName || targetEntityName,
         true,
         extracted.rawExtractedText,
         extracted
       );
+
+      // Check for Department API status
+      if (deptResult.status === 'NOT_FOUND' || deptResult.status === 'NOT_AVAILABLE') {
+        deptResult.status = 'NOT_AVAILABLE';
+        setUploadedDocs(prev => ({
+          ...prev,
+          [specId]: {
+            ...doc,
+            extractedData: extracted,
+            departmentResult: deptResult,
+            verificationStatus: 'NOT_AVAILABLE',
+          },
+        }));
+        return;
+      }
+
+      const hasFieldMismatch = deptResult.fieldComparisons && deptResult.fieldComparisons.some(f => !f.match);
+      if (deptResult.status === 'MISMATCH' || deptResult.status === 'NOT_VERIFIED' || hasFieldMismatch) {
+        if (deptResult.status !== 'SUSPENDED' && deptResult.status !== 'DEBARRED') {
+          deptResult.status = 'NOT_VERIFIED';
+        }
+        setUploadedDocs(prev => ({
+          ...prev,
+          [specId]: {
+            ...doc,
+            extractedData: extracted,
+            departmentResult: deptResult,
+            verificationStatus: deptResult.status === 'SUSPENDED' || deptResult.status === 'DEBARRED' ? deptResult.status : 'NOT_VERIFIED',
+          },
+        }));
+        return;
+      }
+
+      if (deptResult.status !== 'MATCHED') {
+        setUploadedDocs(prev => ({
+          ...prev,
+          [specId]: {
+            ...doc,
+            extractedData: extracted,
+            departmentResult: deptResult,
+            verificationStatus: deptResult.status as VerificationStatus,
+          },
+        }));
+        return;
+      }
+
+      // ----------------------------------------------------
+      // PHASE 4: STEP 1 DECLARED DETAILS CONSISTENCY CHECK
+      // (Executed ONLY after document is verified with API)
+      // ----------------------------------------------------
+      setDocVerifyingStages(prev => ({
+        ...prev,
+        [specId]: 'Phase 3: Cross-matching verified document with Step 1 declared bidder profile...',
+      }));
+
+      const verifiedEntityName =
+        deptResult.databaseRecord?.legalName ||
+        deptResult.databaseRecord?.enterpriseName ||
+        deptResult.databaseRecord?.panHolderName ||
+        deptResult.databaseRecord?.companyName ||
+        deptResult.databaseRecord?.accountHolder ||
+        extracted.entityName ||
+        '';
+
+      const normStep1Name = normalizeCompanyName(rememberedStep1.bidderName);
+      const normVerifiedName = normalizeCompanyName(verifiedEntityName);
+      const isNameMatch =
+        !normStep1Name ||
+        !normVerifiedName ||
+        normStep1Name === normVerifiedName ||
+        normStep1Name.includes(normVerifiedName) ||
+        normVerifiedName.includes(normStep1Name);
+
+      const mismatchDetails: string[] = [];
+      if (!isNameMatch) {
+        mismatchDetails.push(
+          `Legal Entity Name Mismatch: Step 1 declared "${rememberedStep1.bidderName}", but statutory gateway verified "${verifiedEntityName}".`
+        );
+      }
+
+      // Check primary identifier against Step 1
+      let step1DeclaredId: string | undefined;
+      let verifiedId: string | undefined;
+      let isIdMatch: boolean | undefined;
+
+      if (spec.type === 'PAN') {
+        step1DeclaredId = rememberedStep1.panNumber;
+        verifiedId = (deptResult.databaseRecord?.pan || rawExtractedId).trim().toUpperCase();
+        if (step1DeclaredId && verifiedId && step1DeclaredId !== verifiedId) {
+          isIdMatch = false;
+          mismatchDetails.push(
+            `PAN Identifier Mismatch: Step 1 declared "${step1DeclaredId}", but verified document contains "${verifiedId}".`
+          );
+        } else {
+          isIdMatch = true;
+        }
+      } else if (spec.type === 'GSTIN') {
+        step1DeclaredId = rememberedStep1.gstinNumber;
+        verifiedId = (deptResult.databaseRecord?.gstin || rawExtractedId).trim().toUpperCase();
+        if (step1DeclaredId && verifiedId && step1DeclaredId !== verifiedId) {
+          isIdMatch = false;
+          mismatchDetails.push(
+            `GSTIN Mismatch: Step 1 declared "${step1DeclaredId}", but verified document contains "${verifiedId}".`
+          );
+        } else {
+          isIdMatch = true;
+        }
+        if (verifiedId.length >= 12 && rememberedStep1.panNumber) {
+          const gstinPan = verifiedId.slice(2, 12);
+          if (gstinPan !== rememberedStep1.panNumber) {
+            mismatchDetails.push(
+              `GSTIN / PAN Conflict: Step 1 declared PAN "${rememberedStep1.panNumber}", but GSTIN embeds PAN "${gstinPan}".`
+            );
+          }
+        }
+      } else if (spec.type === 'UDYAM') {
+        step1DeclaredId = rememberedStep1.udyamNumber;
+        verifiedId = (deptResult.databaseRecord?.udyamRegistrationNumber || rawExtractedId).trim().toUpperCase();
+        if (step1DeclaredId && verifiedId && step1DeclaredId !== verifiedId) {
+          isIdMatch = false;
+          mismatchDetails.push(
+            `Udyam Registration Mismatch: Step 1 declared "${step1DeclaredId}", but verified document contains "${verifiedId}".`
+          );
+        } else {
+          isIdMatch = true;
+        }
+      } else if (spec.type === 'MCA_COI') {
+        step1DeclaredId = rememberedStep1.cinNumber;
+        verifiedId = (deptResult.databaseRecord?.cin || rawExtractedId).trim().toUpperCase();
+        if (step1DeclaredId && verifiedId && step1DeclaredId !== verifiedId) {
+          isIdMatch = false;
+          mismatchDetails.push(
+            `Corporate CIN Mismatch: Step 1 declared "${step1DeclaredId}", but verified document contains "${verifiedId}".`
+          );
+        } else {
+          isIdMatch = true;
+        }
+      }
+
+      // Check Make in India local content %
+      let verifiedMiiPercent: number | undefined;
+      let isMiiMatch: boolean | undefined;
+      if (spec.type === 'MAKE_IN_INDIA') {
+        verifiedMiiPercent =
+          deptResult.databaseRecord?.verifiedLocalContentPercent ?? extracted.localContentPercentage;
+        if (verifiedMiiPercent !== undefined && rememberedStep1.declaredLocalContentPercent !== undefined) {
+          if (rememberedStep1.declaredLocalContentPercent !== verifiedMiiPercent) {
+            isMiiMatch = false;
+            mismatchDetails.push(
+              `Make In India Local Content Mismatch: Step 1 declared ${rememberedStep1.declaredLocalContentPercent}%, but verified certificate indicates ${verifiedMiiPercent}%.`
+            );
+          } else {
+            isMiiMatch = true;
+          }
+        }
+      }
+
+      // Check state jurisdiction
+      const verifiedState =
+        deptResult.databaseRecord?.registeredState ||
+        deptResult.databaseRecord?.stateJurisdiction ||
+        '';
+      let isStateMatch: boolean | undefined;
+      if (rememberedStep1.registeredState && verifiedState) {
+        const normS1State = rememberedStep1.registeredState.toLowerCase().replace(/[^a-z]/g, '');
+        const normVState = verifiedState.toLowerCase().replace(/[^a-z]/g, '');
+        if (normS1State && normVState && !normS1State.includes(normVState) && !normVState.includes(normS1State)) {
+          isStateMatch = false;
+          mismatchDetails.push(
+            `State Jurisdiction Conflict: Step 1 declared "${rememberedStep1.registeredState}", but statutory record is in "${verifiedState}".`
+          );
+        } else {
+          isStateMatch = true;
+        }
+      }
+
+      const isStep1Consistent = isNameMatch && mismatchDetails.length === 0;
+
+      const crossCheckResult: Step1CrossCheckResult = {
+        step1DeclaredName: rememberedStep1.bidderName,
+        verifiedName: verifiedEntityName,
+        isNameMatch,
+        step1DeclaredId,
+        verifiedId,
+        isIdMatch,
+        step1DeclaredState: rememberedStep1.registeredState,
+        verifiedState,
+        isStateMatch,
+        step1DeclaredMiiPercent: rememberedStep1.declaredLocalContentPercent,
+        verifiedMiiPercent,
+        isMiiMatch,
+        overallConsistency: isStep1Consistent ? 'CONSISTENT' : 'MISMATCH_DETECTED',
+        status: isStep1Consistent ? 'CONSISTENT' : 'MISMATCH_DETECTED',
+        mismatchDetails,
+      };
 
       setUploadedDocs(prev => ({
         ...prev,
         [specId]: {
           ...doc,
           extractedData: extracted,
-          departmentResult: deptResult,
-          verificationStatus: deptResult.status === 'MATCHED' ? 'VERIFIED' : 'DISCREPANCY_FLAGGED',
+          departmentResult: {
+            ...deptResult,
+            statusMessage: isStep1Consistent
+              ? deptResult.statusMessage
+              : `${deptResult.statusMessage} (Step 1 Profile Discrepancy: ${mismatchDetails.join('; ')})`,
+          },
+          verificationStatus: isStep1Consistent ? 'VERIFIED' : 'DISCREPANCY_FLAGGED',
+          step1CrossCheck: crossCheckResult,
         },
       }));
     } catch {
@@ -329,22 +885,79 @@ export const BidderWizard: React.FC<BidderWizardProps> = ({
     verifySingleDocument(spec, newDoc);
   };
 
-  const handleQuickLoadSingleDoc = (spec: RequiredDocumentSpec) => {
+  // Auto-fill a specific document using synthetic profile of one of the 4 companies
+  const handleAutoFillDocForCompany = (spec: RequiredDocumentSpec, companyId: string) => {
+    const comp = HACKATHON_AUTOFILL_COMPANIES.find(c => c.id === companyId) || HACKATHON_AUTOFILL_COMPANIES[0];
+
+    // Determine appropriate registration ID for this document type and company
+    let docNumber = '';
+    if (spec.type === 'UDYAM') {
+      docNumber = comp.udyam || 'UDYAM-NOT-APPLICABLE';
+    } else if (spec.type === 'GSTIN') {
+      docNumber = comp.gstin;
+    } else if (spec.type === 'PAN') {
+      docNumber = comp.pan;
+    } else if (spec.type === 'MCA_COI') {
+      docNumber = comp.cin;
+    } else if (spec.type === 'DSC_DECLARATION') {
+      docNumber = comp.id === 'gamma-infra' ? 'DSC-GAMMA-2026' : `DSC-${comp.pan.slice(0, 5)}-2026`;
+    } else if (spec.type === 'CA_TURNOVER_CERT') {
+      docNumber = comp.id === 'acme-tech' ? 'MOCK-UDIN-ACME-001' :
+                  comp.id === 'beta-systems' ? 'MOCK-UDIN-BETA-002' :
+                  comp.id === 'gamma-infra' ? 'MOCK-UDIN-GAMMA-003' :
+                  'MOCK-UDIN-DELTA-004';
+    } else if (spec.type === 'BANK_DETAILS') {
+      docNumber = comp.id === 'acme-tech' ? 'DMNB0001001' :
+                  comp.id === 'beta-systems' ? 'HDFC0002002' :
+                  comp.id === 'gamma-infra' ? 'PUNB0003003' :
+                  'ICIC0004004';
+    } else if (spec.type === 'BIS_CERT') {
+      docNumber = 'BIS-DEMO-DELTA-4004';
+    } else if (spec.type === 'OEM_AUTH') {
+      docNumber = comp.id === 'delta-meddevices' ? 'DMD-PM100' : 'MAF-OEM-2026-9921';
+    } else if (spec.type === 'BANK_SOLVENCY' || spec.type === 'EMD_PROOF') {
+      docNumber = comp.id === 'gamma-infra' ? 'MOCK-BG-GAMMA-3003' :
+                  comp.id === 'acme-tech' ? 'MOCK-BG-ACME-001' :
+                  comp.id === 'beta-systems' ? 'MOCK-BG-BETA-002' :
+                  'MOCK-BG-DELTA-004';
+    } else if (spec.type === 'QUALITY_CERT_ISO') {
+      docNumber = comp.id === 'acme-tech' ? 'ISO-DEMO-ACME-1001' :
+                  comp.id === 'beta-systems' ? 'ISO-DEMO-BETA-2002' :
+                  comp.id === 'gamma-infra' ? 'ISO-DEMO-GAMMA-3003' :
+                  'ISO-DEMO-DELTA-4004';
+    } else if (spec.type === 'MAKE_IN_INDIA') {
+      docNumber = `MII-${comp.pan.slice(0, 5)}-2026`;
+    } else if (spec.type === 'INTEGRITY_PACT') {
+      docNumber = `IP-CVC-${comp.pan.slice(0, 5)}-2026`;
+    } else {
+      docNumber = `STAT-${comp.pan.slice(0, 5)}-${Math.floor(1000 + Math.random() * 9000)}`;
+    }
+
+    const isGammaSolvencyMismatch = comp.id === 'gamma-infra' && (spec.type === 'BANK_SOLVENCY' || spec.type === 'BANK_DETAILS');
+    const isDeltaTurnoverDoc = comp.id === 'delta-meddevices' && spec.type === 'CA_TURNOVER_CERT';
+
     const dataUrl = generateSampleDocumentDataUrl(
       spec.type,
-      bidderName,
-      spec.type === 'UDYAM' ? udyamNumber :
-      spec.type === 'GSTIN' ? gstinNumber :
-      spec.type === 'PAN' ? panNumber :
-      `STAT-${Math.floor(100000 + Math.random() * 900000)}`,
-      { localContent: declaredLocalContentPercent }
+      comp.fullName,
+      docNumber,
+      {
+        localContent: comp.localContent,
+        status: comp.id === 'gamma-infra' ? 'Dev Malhotra (Managing Director)' :
+                comp.id === 'acme-tech' ? 'Aarav Mehta (Director)' :
+                comp.id === 'beta-systems' ? 'Kabir Shah (Director)' :
+                'Ishita Iyer (Managing Director)',
+        tenderNumber: currentTender.tenderNumber,
+        entityNameOverride: isGammaSolvencyMismatch ? 'Gamma Heavy Engineering Private Limited' : undefined,
+        turnoverText: isDeltaTurnoverDoc ? 'AVERAGE ANNUAL TURNOVER: ₹35,00,000 (THIRTY FIVE LAKHS)' : undefined,
+        turnoverValue: isDeltaTurnoverDoc ? 3500000 : undefined,
+      }
     );
 
     const newDoc: SubmittedDocument = {
       id: `doc-${spec.id}-${Date.now()}`,
       specId: spec.id,
       documentType: spec.type,
-      fileName: `Official_${spec.type}_Certificate.pdf`,
+      fileName: `${comp.shortName.replace(/\s+/g, '_')}_Official_${spec.type}_Certificate.pdf`,
       fileSize: '540 KB',
       uploadMethod: 'FILE_UPLOAD',
       uploadedAt: new Date().toISOString(),
@@ -357,8 +970,39 @@ export const BidderWizard: React.FC<BidderWizardProps> = ({
       [spec.id]: newDoc,
     }));
 
-    // Simultaneously verify document
-    verifySingleDocument(spec, newDoc);
+    // Simultaneously verify document with the company override
+    verifySingleDocument(spec, newDoc, comp);
+  };
+
+  // Backward-compatible fallback for any legacy caller
+  const handleQuickLoadSingleDoc = (spec: RequiredDocumentSpec) => {
+    handleAutoFillDocForCompany(spec, autoFilledCompanyId || 'acme-tech');
+  };
+
+  // Auto-fill ALL required documents for a chosen company at once
+  const handleAutoFillAllDocsForCompany = (companyId: string) => {
+    const comp = HACKATHON_AUTOFILL_COMPANIES.find(c => c.id === companyId);
+    if (!comp) return;
+
+    // Sync Step 1 form fields with this company
+    setAutoFilledCompanyId(comp.id);
+    setBidderName(comp.fullName);
+    setBidderEmail(comp.email);
+    setBidderPhone(comp.phone);
+    setPanNumber(comp.pan);
+    setGstinNumber(comp.gstin);
+    setUdyamNumber(comp.udyam);
+    setCinNumber(comp.cin);
+    setRegisteredState(comp.state);
+    setEnterpriseType(comp.enterpriseType);
+    setDeclaredLocalContentPercent(comp.localContent);
+
+    // Auto-fill all required documents for current tender with small staggered intervals
+    currentTender.requiredDocuments.forEach((spec, idx) => {
+      setTimeout(() => {
+        handleAutoFillDocForCompany(spec, companyId);
+      }, idx * 120);
+    });
   };
 
   // Execution: AI OCR + Multi-portal Verification + Rule Engine Scoring
@@ -374,12 +1018,16 @@ export const BidderWizard: React.FC<BidderWizardProps> = ({
       for (let i = 0; i < docList.length; i++) {
         const doc = docList[i];
         
-        if (doc.verificationStatus === 'VERIFIED' && doc.extractedData && doc.departmentResult) {
-          verifiedDocList.push(doc);
-          continue;
-        }
-
-        if (doc.verificationStatus === 'REJECTED' && doc.extractedData) {
+        if (
+          (doc.verificationStatus === 'VERIFIED' ||
+           doc.verificationStatus === 'INVALID_NO' ||
+           doc.verificationStatus === 'NOT_AVAILABLE' ||
+           doc.verificationStatus === 'NOT_VERIFIED' ||
+           doc.verificationStatus === 'REJECTED' ||
+           doc.verificationStatus === 'DISCREPANCY_FLAGGED') &&
+          doc.extractedData &&
+          doc.departmentResult
+        ) {
           verifiedDocList.push(doc);
           continue;
         }
@@ -412,43 +1060,85 @@ export const BidderWizard: React.FC<BidderWizardProps> = ({
           continue;
         }
 
+        // Validate identifier length & format
+        const rawId = (extracted.documentNumber || '').trim();
+        const syntaxCheck = validateIdentifierSyntax(doc.documentType, rawId);
+
+        if (!syntaxCheck.isValid) {
+          verifiedDocList.push({
+            ...doc,
+            extractedData: extracted,
+            departmentResult: {
+              departmentCode: doc.documentType,
+              departmentName: 'Central Statutory Gateway',
+              queryEndpoint: '',
+              queriedIdentifier: rawId || 'INVALID_IDENTIFIER',
+              queryTimestamp: new Date().toISOString(),
+              status: 'INVALID_NO',
+              verifiedAttributes: {},
+              apiReferenceId: `INV-${Date.now().toString(36).toUpperCase()}`,
+              statusMessage: syntaxCheck.message || 'Invalid Number: Identifier length or format invalid.',
+            },
+            verificationStatus: 'INVALID_NO',
+          });
+          continue;
+        }
+
         // Department verification gateway dispatch
         setVerificationProgress({
           stage: `Government Portal Gateway Query (${doc.documentType})`,
-          detail: `Connecting to ${
-            doc.documentType === 'UDYAM' ? 'Ministry of MSME Udyam Portal' :
-            doc.documentType === 'GSTIN' ? 'Goods & Services Tax Network (GSTN)' :
-            doc.documentType === 'PAN' ? 'Income Tax Department (CBDT)' :
-            doc.documentType === 'DEBARMENT_AFFIDAVIT' ? 'CPPP Central Debarment Watchlist' :
-            'National Procurement Gateway'
-          }...`,
+          detail: `Connecting to Statutory Gateway for ${doc.documentType}...`,
           percent: Math.round(((docList.length + i + 1) / (docList.length * 2)) * 100),
         });
 
         let deptCode = 'STATUTORY_GATEWAY';
-        let queryId = extracted?.documentNumber || panNumber;
+        let queryId = rawId || panNumber;
 
         if (doc.documentType === 'UDYAM') {
           deptCode = 'MSME_UDYAM';
-          queryId = extracted?.documentNumber || udyamNumber;
+          queryId = rawId || udyamNumber;
         } else if (doc.documentType === 'GSTIN') {
           deptCode = 'GSTN';
-          queryId = extracted?.documentNumber || gstinNumber;
+          queryId = rawId || gstinNumber;
         } else if (doc.documentType === 'PAN') {
           deptCode = 'INCOME_TAX_PAN';
-          queryId = extracted?.documentNumber || panNumber;
+          queryId = rawId || panNumber;
         } else if (doc.documentType === 'DEBARMENT_AFFIDAVIT') {
           deptCode = 'CPPP_DEBARMENT';
           queryId = bidderName;
         } else if (doc.documentType === 'EPFO') {
           deptCode = 'EPFO_ESIC';
-          queryId = extracted?.documentNumber || 'MH/BAN/0049210/000';
+          queryId = rawId || 'MH/BAN/0049210/000';
         } else if (doc.documentType === 'MAKE_IN_INDIA') {
           deptCode = 'MAKE_IN_INDIA';
-          queryId = extracted?.documentNumber || 'MII-DECL-2026-894';
+          queryId = rawId || 'MII-DECL-2026-894';
         } else if (doc.documentType === 'OEM_AUTH') {
           deptCode = 'OEM_AUTH';
-          queryId = extracted?.documentNumber || 'MAF-OEM-2026-9921';
+          queryId = rawId || 'MAF-OEM-2026-9921';
+        } else if (doc.documentType === 'MCA_COI') {
+          deptCode = 'MCA21_ROC';
+          queryId = rawId || cinNumber || 'U62010DL2022PTC400001';
+        } else if (doc.documentType === 'DSC_DECLARATION') {
+          deptCode = 'CCA_DSC';
+          queryId = extracted?.signatoryName || bidderName;
+        } else if (doc.documentType === 'CA_TURNOVER_CERT') {
+          deptCode = 'ICAI_UDIN';
+          queryId = rawId || 'MOCK-UDIN-ACME-001';
+        } else if (doc.documentType === 'BANK_DETAILS') {
+          deptCode = 'PFMS_BANK';
+          queryId = rawId || 'DMNB0001001';
+        } else if (doc.documentType === 'BIS_CERT') {
+          deptCode = 'BIS_REGISTRY';
+          queryId = rawId || 'BIS-DEMO-DELTA-4004';
+        } else if (doc.documentType === 'QUALITY_CERT_ISO') {
+          deptCode = 'ISO_QCI';
+          queryId = rawId || 'ISO-DEMO-ACME-1001';
+        } else if (doc.documentType === 'BANK_SOLVENCY' || doc.documentType === 'EMD_PROOF') {
+          deptCode = 'BANK_SOLVENCY_BG';
+          queryId = rawId || 'MOCK-BG-GAMMA-3003';
+        } else if (doc.documentType === 'EXPERIENCE_CERT') {
+          deptCode = 'GEM_WORK_ORDER';
+          queryId = bidderName;
         }
 
         const deptResult = doc.departmentResult || await queryDepartmentGateway(
@@ -460,11 +1150,26 @@ export const BidderWizard: React.FC<BidderWizardProps> = ({
           extracted
         );
 
+        let finalStatus: VerificationStatus = 'VERIFIED';
+        if (deptResult.status === 'NOT_FOUND' || deptResult.status === 'NOT_AVAILABLE') {
+          finalStatus = 'NOT_AVAILABLE';
+        } else if (deptResult.status === 'MISMATCH' || deptResult.status === 'NOT_VERIFIED') {
+          finalStatus = 'NOT_VERIFIED';
+        } else if (deptResult.status === 'SUSPENDED' || deptResult.status === 'DEBARRED') {
+          finalStatus = deptResult.status;
+        } else if (deptResult.status === 'MATCHED') {
+          // Cross check Step 1
+          const normS1 = normalizeCompanyName(rememberedStep1.bidderName);
+          const normVer = normalizeCompanyName(deptResult.databaseRecord?.legalName || deptResult.databaseRecord?.enterpriseName || extracted.entityName || '');
+          const isNameMatch = !normS1 || !normVer || normS1 === normVer || normS1.includes(normVer) || normVer.includes(normS1);
+          finalStatus = isNameMatch ? 'VERIFIED' : 'DISCREPANCY_FLAGGED';
+        }
+
         verifiedDocList.push({
           ...doc,
           extractedData: extracted,
           departmentResult: deptResult,
-          verificationStatus: deptResult.status === 'MATCHED' ? 'VERIFIED' : 'DISCREPANCY_FLAGGED',
+          verificationStatus: finalStatus,
         });
       }
 
@@ -483,6 +1188,7 @@ export const BidderWizard: React.FC<BidderWizardProps> = ({
           gstinNumber,
           udyamNumber,
           declaredLocalContentPercent,
+          declaredTurnoverINR: autoFilledCompanyId === 'delta-meddevices' || bidderName.toLowerCase().includes('delta') ? 3500000 : undefined,
         },
         verifiedDocList
       );
@@ -559,8 +1265,24 @@ export const BidderWizard: React.FC<BidderWizardProps> = ({
     d => d.verificationStatus === 'REJECTED' || d.extractedData?.isValidDocument === false
   ).length;
 
+  const invalidNoCount = docList.filter(
+    d => d.verificationStatus === 'INVALID_NO'
+  ).length;
+
+  const notAvailableCount = docList.filter(
+    d => d.verificationStatus === 'NOT_AVAILABLE'
+  ).length;
+
+  const notVerifiedCount = docList.filter(
+    d => d.verificationStatus === 'NOT_VERIFIED'
+  ).length;
+
+  const step1MismatchCount = docList.filter(
+    d => d.step1CrossCheck?.status === 'MISMATCH_DETECTED'
+  ).length;
+
   const missingCount = currentTender.requiredDocuments.filter(
-    req => req.isMandatory && (!uploadedDocs[req.id] || uploadedDocs[req.id].verificationStatus === 'REJECTED')
+    req => req.isMandatory && (!uploadedDocs[req.id] || uploadedDocs[req.id].verificationStatus === 'REJECTED' || uploadedDocs[req.id].verificationStatus === 'INVALID_NO')
   ).length;
 
   return (
@@ -623,6 +1345,113 @@ export const BidderWizard: React.FC<BidderWizardProps> = ({
           <p className="text-xs text-slate-500 mb-6">
             Ensure your legal organization name exactly matches your Income Tax PAN and GST Registration.
           </p>
+
+          {/* Quick 1-Click Auto-Fill Profiles for 4 Hackathon Companies */}
+          <div className="mb-6 p-4 bg-gradient-to-r from-blue-50/90 via-slate-50 to-indigo-50/90 border border-blue-200 rounded-xl shadow-xs">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+              <div className="flex items-center space-x-2">
+                <div className="w-6 h-6 rounded-md bg-amber-100 flex items-center justify-center text-amber-700 shadow-xs">
+                  <Sparkles className="w-3.5 h-3.5" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wide flex items-center space-x-2">
+                    <span>1-Click Auto-Fill Demo Bidder Profiles</span>
+                    <span className="text-[10px] font-mono px-1.5 py-0.2 bg-[#002B5B] text-white rounded font-normal">
+                      4 Companies
+                    </span>
+                  </h4>
+                  <p className="text-[11px] text-slate-500">
+                    Click any company to auto-fill its legal details (PAN, GSTIN, Udyam, CIN, State, MII %) and select its matching tender:
+                  </p>
+                </div>
+              </div>
+              {autoFilledCompanyId && (
+                <button
+                  type="button"
+                  onClick={() => setAutoFilledCompanyId(null)}
+                  className="text-[10px] text-slate-500 hover:text-slate-700 underline self-start sm:self-auto font-medium"
+                >
+                  Clear Selection
+                </button>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {HACKATHON_AUTOFILL_COMPANIES.map(company => {
+                const isSelected = autoFilledCompanyId === company.id || bidderName === company.fullName;
+
+                return (
+                  <button
+                    key={company.id}
+                    id={`autofill-btn-${company.id}`}
+                    type="button"
+                    onClick={() => handleAutoFillCompany(company.id)}
+                    className={`text-left p-3.5 rounded-xl border transition-all relative group flex flex-col justify-between ${
+                      isSelected
+                        ? 'bg-white border-[#002B5B] shadow-md ring-2 ring-blue-500/30'
+                        : 'bg-white/90 hover:bg-white border-slate-200 hover:border-blue-300 shadow-xs'
+                    }`}
+                  >
+                    <div>
+                      <div className="flex items-center justify-between gap-1 mb-2">
+                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border uppercase tracking-wider ${
+                          company.tagColor === 'emerald' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                          company.tagColor === 'amber' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                          company.tagColor === 'rose' ? 'bg-rose-50 text-rose-700 border-rose-200 font-black' :
+                          'bg-teal-50 text-teal-700 border-teal-200'
+                        }`}>
+                          {company.badge}
+                        </span>
+                        {isSelected && (
+                          <span className="w-4 h-4 rounded-full bg-[#002B5B] text-white flex items-center justify-center shrink-0 shadow-xs">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-[#F27D26]" />
+                          </span>
+                        )}
+                      </div>
+
+                      <h5 className="text-xs font-bold text-slate-900 group-hover:text-blue-900 transition-colors line-clamp-1">
+                        {company.shortName}
+                      </h5>
+
+                      <div className="text-[10px] font-mono text-slate-600 mt-1.5 space-y-0.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-slate-400">PAN:</span>
+                          <strong className="text-slate-800">{company.pan}</strong>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-slate-400">GSTIN:</span>
+                          <span className="text-slate-700 truncate max-w-[130px]" title={company.gstin}>{company.gstin}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-slate-400">Udyam:</span>
+                          <span className="text-slate-700 truncate max-w-[130px]">
+                            {company.udyam ? company.udyam : <em className="text-slate-400 not-italic font-sans text-[9px]">None (Large)</em>}
+                          </span>
+                        </div>
+                      </div>
+
+                      <p className="text-[10px] text-blue-700 font-medium truncate mt-1.5" title={company.tenderName}>
+                        📋 {company.tenderName}
+                      </p>
+
+                      <p className="text-[9.5px] text-slate-500 mt-1.5 line-clamp-2 leading-tight bg-slate-50 p-1.5 rounded border border-slate-100">
+                        {company.notes}
+                      </p>
+                    </div>
+
+                    <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between text-[10px]">
+                      <span className="text-slate-400 font-medium">Local Content:</span>
+                      <span className={`font-bold ${
+                        company.localContent < 20 ? 'text-rose-600' : 'text-emerald-700'
+                      }`}>
+                        {company.localContent}% MII
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
             {/* Tender Selection Dropdown */}
@@ -695,7 +1524,7 @@ export const BidderWizard: React.FC<BidderWizardProps> = ({
             </div>
 
             {/* Legal Entity Name */}
-            <div>
+            <div className="md:col-span-2">
               <label className="block text-xs font-bold text-slate-700 mb-1">
                 Legal Entity Name (As per PAN / Incorporation) *
               </label>
@@ -718,6 +1547,20 @@ export const BidderWizard: React.FC<BidderWizardProps> = ({
                 type="email"
                 value={bidderEmail}
                 onChange={e => setBidderEmail(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:ring-2 focus:ring-blue-600 focus:outline-hidden"
+              />
+            </div>
+
+            {/* Registered Phone */}
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Authorized Mobile / Phone *
+              </label>
+              <input
+                type="tel"
+                value={bidderPhone}
+                onChange={e => setBidderPhone(e.target.value)}
+                placeholder="e.g. +91 98100 12345"
                 className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:ring-2 focus:ring-blue-600 focus:outline-hidden"
               />
             </div>
@@ -754,6 +1597,21 @@ export const BidderWizard: React.FC<BidderWizardProps> = ({
               />
             </div>
 
+            {/* Corporate Identification Number (CIN) */}
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Corporate Identification Number (CIN - MCA21 ROC)
+              </label>
+              <input
+                id="bidder-cin-input"
+                type="text"
+                value={cinNumber}
+                onChange={e => setCinNumber(e.target.value.toUpperCase())}
+                placeholder="e.g. U62010DL2022PTC400001"
+                className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm font-mono text-slate-900 uppercase focus:ring-2 focus:ring-blue-600 focus:outline-hidden"
+              />
+            </div>
+
             {/* Udyam Registration Number */}
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">
@@ -787,33 +1645,6 @@ export const BidderWizard: React.FC<BidderWizardProps> = ({
               </select>
             </div>
 
-            {/* Declared Local Content % */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Declared Make in India Local Content (% of domestic value addition) *
-              </label>
-              <div className="flex items-center space-x-2">
-                <input
-                  type="number"
-                  min={0}
-                  max={100}
-                  value={declaredLocalContentPercent}
-                  onChange={e => setDeclaredLocalContentPercent(Number(e.target.value))}
-                  className="w-28 bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm font-bold text-slate-900 focus:ring-2 focus:ring-blue-600 focus:outline-hidden"
-                />
-                <span className="text-xs font-bold text-slate-600">%</span>
-                <span className={`text-xs font-semibold px-2 py-0.5 rounded ${
-                  declaredLocalContentPercent >= currentTender.minimumLocalContentPercent
-                    ? 'bg-emerald-100 text-emerald-800'
-                    : 'bg-rose-100 text-rose-800'
-                }`}>
-                  {declaredLocalContentPercent >= currentTender.minimumLocalContentPercent
-                    ? `Meets Tender Requirement (≥ ${currentTender.minimumLocalContentPercent}%)`
-                    : `Below Tender Threshold (${currentTender.minimumLocalContentPercent}%)`}
-                </span>
-              </div>
-            </div>
-
             {/* Registered State */}
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">
@@ -826,6 +1657,42 @@ export const BidderWizard: React.FC<BidderWizardProps> = ({
                 placeholder="e.g. Maharashtra, Delhi, Gujarat..."
                 className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:ring-2 focus:ring-blue-600 focus:outline-hidden"
               />
+            </div>
+
+            {/* Declared Local Content % */}
+            <div className="md:col-span-2">
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Declared Make in India Local Content (% of domestic value addition) *
+              </label>
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={declaredLocalContentPercent}
+                    onChange={e => setDeclaredLocalContentPercent(Number(e.target.value))}
+                    className="w-28 bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm font-bold text-slate-900 focus:ring-2 focus:ring-blue-600 focus:outline-hidden"
+                  />
+                  <span className="text-xs font-bold text-slate-600">%</span>
+                </div>
+                <span className={`text-xs font-semibold px-2.5 py-1 rounded-lg ${
+                  declaredLocalContentPercent >= currentTender.minimumLocalContentPercent
+                    ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                    : 'bg-rose-100 text-rose-800 border border-rose-200'
+                }`}>
+                  {declaredLocalContentPercent >= currentTender.minimumLocalContentPercent
+                    ? `Meets Tender Requirement (≥ ${currentTender.minimumLocalContentPercent}%)`
+                    : `Below Tender Threshold (${currentTender.minimumLocalContentPercent}%)`}
+                </span>
+                <span className="text-[11px] text-slate-500">
+                  {declaredLocalContentPercent >= 50
+                    ? 'Class-I Local Supplier (≥ 50%)'
+                    : declaredLocalContentPercent >= 20
+                    ? 'Class-II Local Supplier (20% - 49%)'
+                    : 'Non-Local Supplier (< 20%)'}
+                </span>
+              </div>
             </div>
           </div>
 
@@ -863,6 +1730,12 @@ export const BidderWizard: React.FC<BidderWizardProps> = ({
                   ? 'bg-blue-100 text-blue-800 border border-blue-200' 
                   : rejectedCount > 0
                   ? 'bg-rose-100 text-rose-800 border border-rose-200'
+                  : invalidNoCount > 0
+                  ? 'bg-purple-100 text-purple-800 border border-purple-200'
+                  : notAvailableCount > 0
+                  ? 'bg-slate-200 text-slate-800 border border-slate-300'
+                  : notVerifiedCount > 0
+                  ? 'bg-rose-100 text-rose-800 border border-rose-200'
                   : missingCount === 0 
                   ? 'bg-emerald-100 text-emerald-800' 
                   : 'bg-amber-100 text-amber-800'
@@ -871,10 +1744,131 @@ export const BidderWizard: React.FC<BidderWizardProps> = ({
                   ? `Verifying (${verifyingCount} in progress)...`
                   : rejectedCount > 0
                   ? `${rejectedCount} Document(s) Rejected - Invalid File`
+                  : invalidNoCount > 0
+                  ? `${invalidNoCount} Document(s) with Invalid Number/Length`
+                  : notAvailableCount > 0
+                  ? `${notAvailableCount} Document(s) Not Available in Registry`
+                  : notVerifiedCount > 0
+                  ? `${notVerifiedCount} Document(s) Not Verified (Field Mismatch)`
                   : missingCount === 0 
                   ? 'All Mandatory Documents Verified' 
                   : `${missingCount} Mandatory Document(s) Pending`}
               </span>
+            </div>
+          </div>
+
+          {/* STEP 1 DECLARED PROFILE MEMORY BANNER */}
+          <div className="mb-5 p-4 bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 text-white rounded-xl border border-blue-900/60 shadow-md">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-blue-800/60 pb-3 mb-3">
+              <div className="flex items-center space-x-2.5">
+                <div className="w-8 h-8 rounded-lg bg-blue-600/30 border border-blue-400/40 flex items-center justify-center text-blue-300 shadow-inner shrink-0">
+                  <Lock className="w-4 h-4 text-blue-300" />
+                </div>
+                <div>
+                  <div className="flex items-center space-x-2">
+                    <span className="text-xs font-bold text-white uppercase tracking-wider">
+                      Declared Bidder Profile (Step 1 Memory)
+                    </span>
+                    <span className="text-[10px] font-mono px-2 py-0.5 bg-blue-500/20 text-blue-300 border border-blue-400/30 rounded-full font-semibold flex items-center space-x-1">
+                      <ShieldCheck className="w-3 h-3 text-blue-300" />
+                      <span>Persisted for Step 2 Cross-Check</span>
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-blue-200/80 mt-0.5">
+                    Step 2 verification order: 1️⃣ Sarvam Indic AI text extraction ➔ 2️⃣ Identifier length & format check ➔ 3️⃣ Department API query ➔ 4️⃣ Step 1 profile cross-match.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setCurrentStep(1)}
+                className="self-start md:self-auto px-3 py-1.5 text-xs font-bold bg-white/10 hover:bg-white/20 text-blue-100 rounded-lg border border-white/20 transition-colors flex items-center space-x-1.5 shrink-0"
+              >
+                <span>Edit Step 1 Details</span>
+                <ArrowRight className="w-3.5 h-3.5 text-blue-300" />
+              </button>
+            </div>
+
+            {/* Remembered Fields Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 text-xs">
+              <div className="bg-white/5 border border-white/10 rounded-lg p-2.5">
+                <span className="text-[10px] text-slate-400 uppercase font-semibold block">Declared Entity</span>
+                <span className="font-bold text-white truncate block" title={rememberedStep1.bidderName || 'Not declared'}>
+                  {rememberedStep1.bidderName || '—'}
+                </span>
+              </div>
+              <div className="bg-white/5 border border-white/10 rounded-lg p-2.5">
+                <span className="text-[10px] text-slate-400 uppercase font-semibold block">Declared PAN</span>
+                <span className="font-mono font-bold text-blue-300 block">
+                  {rememberedStep1.panNumber || '—'}
+                </span>
+              </div>
+              <div className="bg-white/5 border border-white/10 rounded-lg p-2.5">
+                <span className="text-[10px] text-slate-400 uppercase font-semibold block">Declared GSTIN</span>
+                <span className="font-mono font-bold text-blue-300 block truncate" title={rememberedStep1.gstinNumber}>
+                  {rememberedStep1.gstinNumber || '—'}
+                </span>
+              </div>
+              <div className="bg-white/5 border border-white/10 rounded-lg p-2.5">
+                <span className="text-[10px] text-slate-400 uppercase font-semibold block">Declared Udyam</span>
+                <span className="font-mono font-bold text-blue-300 block truncate" title={rememberedStep1.udyamNumber}>
+                  {rememberedStep1.udyamNumber || '—'}
+                </span>
+              </div>
+              <div className="bg-white/5 border border-white/10 rounded-lg p-2.5">
+                <span className="text-[10px] text-slate-400 uppercase font-semibold block">Corporate CIN</span>
+                <span className="font-mono font-bold text-blue-300 block truncate" title={rememberedStep1.cinNumber}>
+                  {rememberedStep1.cinNumber || '—'}
+                </span>
+              </div>
+              <div className="bg-white/5 border border-white/10 rounded-lg p-2.5">
+                <span className="text-[10px] text-slate-400 uppercase font-semibold block">State / MII %</span>
+                <span className="font-semibold text-emerald-400 block truncate">
+                  {rememberedStep1.registeredState || '—'} • {rememberedStep1.declaredLocalContentPercent}%
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Quick Auto-Fill All Documents Toolbar for the 4 Companies */}
+          <div className="mb-5 p-3.5 bg-gradient-to-r from-blue-50/90 via-slate-50 to-indigo-50/90 border border-blue-200 rounded-xl shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
+            <div className="flex items-center space-x-2.5">
+              <div className="w-7 h-7 rounded-lg bg-[#002B5B] flex items-center justify-center text-[#F27D26] shadow-xs shrink-0">
+                <Sparkles className="w-4 h-4" />
+              </div>
+              <div>
+                <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wide flex items-center space-x-2">
+                  <span>Auto-Fill All Required Documents</span>
+                  <span className="text-[10px] font-mono px-1.5 py-0.2 bg-blue-100 text-blue-800 rounded font-bold">
+                    4 Companies
+                  </span>
+                </h4>
+                <p className="text-[11px] text-slate-500">
+                  Select any company from the dropdown to automatically generate and simultaneously verify all required documents:
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <select
+                id="autofill-all-docs-dropdown"
+                onChange={e => {
+                  if (e.target.value) {
+                    handleAutoFillAllDocsForCompany(e.target.value);
+                    e.target.value = '';
+                  }
+                }}
+                defaultValue=""
+                className="w-full md:w-auto bg-white hover:bg-slate-50 text-blue-950 border border-blue-300 text-xs font-bold rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-hidden cursor-pointer shadow-xs"
+              >
+                <option value="" disabled>⚡ Auto-Fill All Docs for Company ▾</option>
+                {HACKATHON_AUTOFILL_COMPANIES.map(c => (
+                  <option key={c.id} value={c.id}>
+                    {c.shortName} ({c.badge})
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 
@@ -886,6 +1880,10 @@ export const BidderWizard: React.FC<BidderWizardProps> = ({
               const isVerified = uploaded?.verificationStatus === 'VERIFIED';
               const isRejected = uploaded?.verificationStatus === 'REJECTED' || uploaded?.extractedData?.isValidDocument === false;
               const isDiscrepant = uploaded?.verificationStatus === 'DISCREPANCY_FLAGGED';
+              const isInvalidNo = uploaded?.verificationStatus === 'INVALID_NO';
+              const isNotAvailable = uploaded?.verificationStatus === 'NOT_AVAILABLE';
+              const isNotVerified = uploaded?.verificationStatus === 'NOT_VERIFIED';
+              const hasStep1Mismatch = uploaded?.step1CrossCheck?.status === 'MISMATCH_DETECTED';
               const stageText = docVerifyingStages[spec.id];
 
               return (
@@ -896,10 +1894,18 @@ export const BidderWizard: React.FC<BidderWizardProps> = ({
                       ? 'bg-blue-50/50 border-blue-400 ring-1 ring-blue-300'
                       : isRejected
                       ? 'bg-rose-50/50 border-rose-300 ring-1 ring-rose-200'
-                      : isVerified
-                      ? 'bg-emerald-50/40 border-emerald-300'
+                      : isInvalidNo
+                      ? 'bg-purple-50/50 border-purple-300 ring-1 ring-purple-200'
+                      : isNotAvailable
+                      ? 'bg-slate-50 border-slate-400 ring-1 ring-slate-300'
+                      : isNotVerified
+                      ? 'bg-rose-50/50 border-rose-300 ring-1 ring-rose-200'
+                      : hasStep1Mismatch
+                      ? 'bg-amber-50/60 border-amber-300 ring-1 ring-amber-200'
                       : isDiscrepant
                       ? 'bg-amber-50/40 border-amber-300'
+                      : isVerified
+                      ? 'bg-emerald-50/40 border-emerald-300'
                       : spec.isMandatory
                       ? 'bg-slate-50 border-slate-300'
                       : 'bg-white border-slate-200'
@@ -939,10 +1945,31 @@ export const BidderWizard: React.FC<BidderWizardProps> = ({
                           </span>
                         )}
 
+                        {isInvalidNo && (
+                          <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-purple-100 text-purple-800 border border-purple-300 flex items-center space-x-1">
+                            <Hash className="w-3 h-3 text-purple-600" />
+                            <span>Invalid No. (Length/Format)</span>
+                          </span>
+                        )}
+
+                        {isNotAvailable && (
+                          <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-slate-200 text-slate-800 border border-slate-400 flex items-center space-x-1">
+                            <AlertCircle className="w-3 h-3 text-slate-600" />
+                            <span>Not Available in Registry</span>
+                          </span>
+                        )}
+
+                        {isNotVerified && (
+                          <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-rose-100 text-rose-800 border border-rose-300 flex items-center space-x-1">
+                            <XCircle className="w-3 h-3 text-rose-600" />
+                            <span>Not Verified (Field Mismatch)</span>
+                          </span>
+                        )}
+
                         {isDiscrepant && (
                           <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-amber-100 text-amber-800 border border-amber-300 flex items-center space-x-1">
                             <AlertTriangle className="w-3 h-3 text-amber-600" />
-                            <span>Discrepancy</span>
+                            <span>{hasStep1Mismatch ? 'Discrepancy: Step 1 Profile Mismatch' : 'Discrepancy'}</span>
                           </span>
                         )}
                       </div>
@@ -963,11 +1990,11 @@ export const BidderWizard: React.FC<BidderWizardProps> = ({
                           <RefreshCw className="w-4 h-4 text-blue-600 animate-spin shrink-0 mt-0.5" />
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between font-bold text-xs">
-                              <span>Simultaneous Verification in Progress</span>
-                              <span className="text-[11px] text-blue-600 font-semibold animate-pulse">Running AI OCR & Gateway Check...</span>
+                              <span>Multi-Phase Verification in Progress</span>
+                              <span className="text-[11px] text-blue-600 font-semibold animate-pulse">Extracting text & validating...</span>
                             </div>
                             <p className="text-[11px] text-blue-800 mt-1 font-medium">
-                              {stageText || 'Scanning Ashoka Stambh emblem, bilingual Indic text & validating registration ID...'}
+                              {stageText || 'Extracting document text with Sarvam AI, checking syntax, & querying department gateway...'}
                             </p>
                             <div className="w-full bg-blue-200/80 rounded-full h-1.5 mt-2 overflow-hidden">
                               <div className="bg-[#1e3a8a] h-1.5 rounded-full animate-pulse w-3/4"></div>
@@ -976,8 +2003,8 @@ export const BidderWizard: React.FC<BidderWizardProps> = ({
                         </div>
                       )}
 
-                      {/* Two-Stage Verification Details: 1. Sarvam AI Text Extraction -> 2. Department Database Cross-Match */}
-                      {isVerified && uploaded?.extractedData && (
+                      {/* Multi-Stage Verification Details: 1. Sarvam AI Text Extraction -> 2. Department Database Cross-Match -> 3. Step 1 Declared Profile Cross-Check */}
+                      {uploaded?.extractedData && !isRejected && (
                         <div className="mt-3 space-y-2.5">
                           {/* Stage 1: Sarvam Indic AI Extraction */}
                           <div className="p-3 rounded-lg bg-orange-50/80 border border-orange-200 text-xs text-slate-800 shadow-2xs">
@@ -1009,7 +2036,7 @@ export const BidderWizard: React.FC<BidderWizardProps> = ({
                               </div>
                               <div className="bg-white/90 p-2 rounded border border-orange-200/60">
                                 <span className="text-slate-500 font-medium block text-[10px] uppercase">Extracted Legal Entity</span>
-                                <span className="font-bold text-slate-900 truncate block">{uploaded.extractedData.entityName || bidderName}</span>
+                                <span className="font-bold text-slate-900 truncate block">{uploaded.extractedData.organizationName || uploaded.extractedData.entityName || bidderName}</span>
                               </div>
                             </div>
 
@@ -1036,7 +2063,7 @@ export const BidderWizard: React.FC<BidderWizardProps> = ({
                                 <button
                                   type="button"
                                   onClick={() => setExpandedRawTextDocs(prev => ({ ...prev, [spec.id]: !prev[spec.id] }))}
-                                  className="text-[11px] font-semibold text-orange-900 hover:text-orange-950 flex items-center space-x-1"
+                                  className="text-[11px] font-semibold text-orange-900 hover:text-orange-950 flex items-center space-x-1 cursor-pointer"
                                 >
                                   <FileText className="w-3 h-3 text-orange-700" />
                                   <span>{expandedRawTextDocs[spec.id] ? 'Hide Raw Extracted Text' : 'View Full Extracted Text from Document'}</span>
@@ -1052,8 +2079,91 @@ export const BidderWizard: React.FC<BidderWizardProps> = ({
                             )}
                           </div>
 
-                          {/* Stage 2: Concerned Department Database API Cross-Check */}
-                          {uploaded.departmentResult && (
+                          {/* Stage 1.5 Alert: Invalid Number Syntax/Length Violation */}
+                          {isInvalidNo && (
+                            <div className="p-3.5 rounded-lg bg-purple-50 border border-purple-300 text-xs text-purple-950 shadow-2xs space-y-2">
+                              <div className="flex items-center space-x-2 text-purple-900 font-bold">
+                                <Hash className="w-4 h-4 text-purple-600 shrink-0" />
+                                <span>Invalid Registration Number: Length / Format Error</span>
+                              </div>
+                              <p className="text-purple-800 font-medium">
+                                {uploaded.departmentResult?.statusMessage || 'The registration number extracted from this document is either too short, too long, or does not adhere to official statutory character formatting.'}
+                              </p>
+                              <div className="p-2 bg-white/80 rounded border border-purple-200 text-purple-900 text-[11px] flex items-center justify-between">
+                                <span><span className="font-bold">Extracted ID:</span> <span className="font-mono">{uploaded.extractedData.documentNumber || 'N/A'}</span></span>
+                                <span className="text-purple-700 font-semibold">Statutory Gateway Query Bypassed</span>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Stage 2 Alert: Not Available in Statutory Gateway */}
+                          {isNotAvailable && (
+                            <div className="p-3.5 rounded-lg bg-slate-100 border border-slate-300 text-xs text-slate-900 shadow-2xs space-y-2">
+                              <div className="flex items-center space-x-2 text-slate-900 font-bold">
+                                <AlertCircle className="w-4 h-4 text-slate-600 shrink-0" />
+                                <span>Statutory Gateway: Record Not Available</span>
+                              </div>
+                              <p className="text-slate-700 font-medium">
+                                {uploaded.departmentResult?.statusMessage || 'The extracted registration number was queried against the department database, but no active matching registration record was found in the government repository.'}
+                              </p>
+                              {uploaded.departmentResult && (
+                                <div className="text-[10px] text-slate-600 font-mono flex items-center justify-between pt-1 border-t border-slate-200">
+                                  <span>Queried Gateway: {uploaded.departmentResult.departmentName}</span>
+                                  <span>Endpoint: {uploaded.departmentResult.queryEndpoint}</span>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Stage 2 Alert: Not Verified (Statutory Field Discrepancy) */}
+                          {isNotVerified && (
+                            <div className="p-3.5 rounded-lg bg-rose-50 border border-rose-300 text-xs text-rose-950 shadow-2xs space-y-2">
+                              <div className="flex items-center space-x-2 text-rose-900 font-bold">
+                                <XCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                                <span>Statutory Gateway: Not Verified (Field Mismatch)</span>
+                              </div>
+                              <p className="text-rose-800 font-medium">
+                                {uploaded.departmentResult?.statusMessage || 'The details extracted from the document do not match the official record maintained in the department database.'}
+                              </p>
+                              {uploaded.departmentResult?.fieldComparisons && uploaded.departmentResult.fieldComparisons.length > 0 && (
+                                <div className="mt-2 overflow-x-auto">
+                                  <table className="w-full text-left text-[11px] border-collapse bg-white/90 rounded border border-rose-200">
+                                    <thead>
+                                      <tr className="bg-rose-100/70 text-rose-950 font-bold border-b border-rose-200">
+                                        <th className="p-1.5">Verification Field</th>
+                                        <th className="p-1.5">Extracted by Sarvam</th>
+                                        <th className="p-1.5">Department Database Record</th>
+                                        <th className="p-1.5 text-center">Match</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-rose-100">
+                                      {uploaded.departmentResult.fieldComparisons.map((cmp, idx) => (
+                                        <tr key={idx} className="hover:bg-rose-50/50">
+                                          <td className="p-1.5 font-medium text-slate-700">{cmp.field}</td>
+                                          <td className="p-1.5 font-mono text-slate-900">{cmp.extractedFromDoc}</td>
+                                          <td className="p-1.5 font-mono text-rose-900 font-bold">{cmp.databaseMasterValue}</td>
+                                          <td className="p-1.5 text-center">
+                                            {cmp.match ? (
+                                              <span className="inline-flex items-center text-emerald-700 font-bold text-[10px]">
+                                                <CheckCircle2 className="w-3 h-3 mr-0.5" /> Match
+                                              </span>
+                                            ) : (
+                                              <span className="inline-flex items-center text-rose-700 font-bold text-[10px]">
+                                                <XCircle className="w-3 h-3 mr-0.5" /> Mismatch
+                                              </span>
+                                            )}
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Stage 2: Concerned Department Database API Cross-Check (For verified or step 1 mismatch) */}
+                          {(isVerified || hasStep1Mismatch) && uploaded.departmentResult && (
                             <div className="p-3 rounded-lg bg-emerald-50/80 border border-emerald-200 text-xs text-slate-800 shadow-2xs">
                               <div className="flex flex-wrap items-center justify-between gap-2 border-b border-emerald-200/70 pb-2">
                                 <div className="flex items-center space-x-2">
@@ -1116,6 +2226,82 @@ export const BidderWizard: React.FC<BidderWizardProps> = ({
                               </div>
                             </div>
                           )}
+
+                          {/* Stage 3: Step 1 Declared Profile Cross-Check (Executed ONLY after Department API is Verified) */}
+                          {uploaded.step1CrossCheck && (
+                            <div className={`p-3 rounded-lg border text-xs shadow-2xs ${
+                              uploaded.step1CrossCheck.status === 'CONSISTENT'
+                                ? 'bg-blue-50/80 border-blue-200 text-blue-950'
+                                : 'bg-amber-50/90 border-amber-300 text-amber-950'
+                            }`}>
+                              <div className={`flex flex-wrap items-center justify-between gap-2 border-b pb-2 ${
+                                uploaded.step1CrossCheck.status === 'CONSISTENT' ? 'border-blue-200/70' : 'border-amber-200'
+                              }`}>
+                                <div className="flex items-center space-x-2">
+                                  <span className={`px-2 py-0.5 text-[10px] font-bold rounded uppercase tracking-wider flex items-center space-x-1 ${
+                                    uploaded.step1CrossCheck.status === 'CONSISTENT'
+                                      ? 'bg-[#002B5B] text-white'
+                                      : 'bg-amber-600 text-white'
+                                  }`}>
+                                    <Lock className="w-2.5 h-2.5" />
+                                    <span>Step 1 Profile Cross-Check</span>
+                                  </span>
+                                  <span className="text-[11px] font-bold">
+                                    {uploaded.step1CrossCheck.status === 'CONSISTENT'
+                                      ? 'Consistent with Declared Profile'
+                                      : 'Declared Profile Discrepancy (Post-Verification)'}
+                                  </span>
+                                </div>
+                                <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full border ${
+                                  uploaded.step1CrossCheck.status === 'CONSISTENT'
+                                    ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
+                                    : 'bg-amber-100 text-amber-900 border-amber-300'
+                                }`}>
+                                  {uploaded.step1CrossCheck.status === 'CONSISTENT' ? '✓ 100% Consistent' : '⚠ Discrepancy Found'}
+                                </span>
+                              </div>
+
+                              {uploaded.step1CrossCheck.status === 'CONSISTENT' ? (
+                                <div className="mt-2 text-[11px] text-blue-900 flex items-start space-x-2">
+                                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                                  <div>
+                                    <p className="font-semibold text-slate-800">
+                                      Declared Step 1 details match the verified document and statutory registry.
+                                    </p>
+                                    <div className="mt-1 text-[10px] text-slate-600 font-mono space-x-3">
+                                      <span>Declared Entity: <b>{rememberedStep1.bidderName}</b></span>
+                                      <span>•</span>
+                                      <span>Status: <b>Verified & Aligned</b></span>
+                                    </div>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="mt-2 space-y-2 text-[11px]">
+                                  <p className="font-semibold text-amber-900">
+                                    The document was successfully verified by the government gateway, but its verified details conflict with your Step 1 declaration:
+                                  </p>
+                                  <ul className="space-y-1 pl-1">
+                                    {uploaded.step1CrossCheck.mismatchDetails.map((msg, mIdx) => (
+                                      <li key={mIdx} className="flex items-start space-x-1.5 text-amber-900 bg-amber-100/60 p-1.5 rounded border border-amber-200">
+                                        <AlertTriangle className="w-3.5 h-3.5 text-amber-700 shrink-0 mt-0.5" />
+                                        <span className="font-medium leading-snug">{msg}</span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                  <div className="pt-1 flex items-center gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => setCurrentStep(1)}
+                                      className="px-2.5 py-1 bg-white hover:bg-amber-100 text-amber-900 border border-amber-300 rounded font-semibold text-[10px] shadow-2xs transition-colors flex items-center space-x-1 cursor-pointer"
+                                    >
+                                      <ArrowLeft className="w-3 h-3 text-amber-700" />
+                                      <span>Return to Step 1 to Update Profile</span>
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                       )}
 
@@ -1143,15 +2329,27 @@ export const BidderWizard: React.FC<BidderWizardProps> = ({
                                   <span className="font-semibold">Expected:</span> {spec.title}
                                 </div>
                               )}
-                              <div className="mt-2.5 flex items-center gap-2">
-                                <button
-                                  type="button"
-                                  onClick={() => handleQuickLoadSingleDoc(spec)}
-                                  className="px-2.5 py-1 bg-white hover:bg-rose-100 text-rose-800 border border-rose-300 rounded font-semibold text-[11px] transition-colors flex items-center space-x-1"
-                                >
-                                  <Sparkles className="w-3 h-3 text-[#F27D26]" />
-                                  <span>Replace with Authentic Sample</span>
-                                </button>
+                              <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                                <div className="relative inline-block">
+                                  <select
+                                    id={`reupload-select-${spec.id}`}
+                                    onChange={e => {
+                                      if (e.target.value) {
+                                        handleAutoFillDocForCompany(spec, e.target.value);
+                                        e.target.value = '';
+                                      }
+                                    }}
+                                    defaultValue=""
+                                    className="px-2.5 py-1 bg-white hover:bg-rose-50 text-rose-900 border border-rose-300 rounded-lg font-semibold text-[11px] transition-colors shadow-2xs cursor-pointer focus:ring-2 focus:ring-rose-500 focus:outline-hidden"
+                                  >
+                                    <option value="" disabled>⚡ Replace with Company Doc ▾</option>
+                                    {HACKATHON_AUTOFILL_COMPANIES.map(c => (
+                                      <option key={c.id} value={c.id}>
+                                        {c.shortName} ({c.badge})
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
                                 <span className="text-[11px] text-rose-600">or re-upload an official certificate</span>
                               </div>
                             </div>
@@ -1159,8 +2357,8 @@ export const BidderWizard: React.FC<BidderWizardProps> = ({
                         </div>
                       )}
 
-                      {/* Discrepancy Box */}
-                      {isDiscrepant && (
+                      {/* Generic Discrepancy Box if no Step 1 cross-check */}
+                      {isDiscrepant && !hasStep1Mismatch && (
                         <div className="mt-2.5 p-2.5 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-900 flex items-center space-x-2">
                           <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
                           <div>
@@ -1175,7 +2373,12 @@ export const BidderWizard: React.FC<BidderWizardProps> = ({
                     <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
                       {uploaded ? (
                         <div className={`flex flex-col sm:flex-row items-start sm:items-center gap-2 bg-white px-3 py-2 rounded-lg border shadow-2xs ${
-                          isRejected ? 'border-rose-300 bg-rose-50/20' : 'border-slate-200'
+                          isRejected ? 'border-rose-300 bg-rose-50/20' :
+                          isInvalidNo ? 'border-purple-300 bg-purple-50/20' :
+                          isNotAvailable ? 'border-slate-300 bg-slate-50' :
+                          isNotVerified ? 'border-rose-300 bg-rose-50/20' :
+                          hasStep1Mismatch ? 'border-amber-300 bg-amber-50/20' :
+                          'border-slate-200'
                         }`}>
                           <div className="flex items-center space-x-2">
                             {isVerifyingThis ? (
@@ -1183,6 +2386,12 @@ export const BidderWizard: React.FC<BidderWizardProps> = ({
                             ) : isVerified ? (
                               <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                             ) : isRejected ? (
+                              <XCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                            ) : isInvalidNo ? (
+                              <Hash className="w-4 h-4 text-purple-600 shrink-0" />
+                            ) : isNotAvailable ? (
+                              <AlertCircle className="w-4 h-4 text-slate-600 shrink-0" />
+                            ) : isNotVerified ? (
                               <XCircle className="w-4 h-4 text-rose-600 shrink-0" />
                             ) : (
                               <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
@@ -1220,6 +2429,24 @@ export const BidderWizard: React.FC<BidderWizardProps> = ({
                               <RefreshCw className={`w-3 h-3 text-blue-600 ${isVerifyingThis ? 'animate-spin' : ''}`} />
                               <span>Re-verify</span>
                             </button>
+
+                            {/* Quick Switch Company Dropdown */}
+                            <select
+                              onChange={e => {
+                                if (e.target.value) {
+                                  handleAutoFillDocForCompany(spec, e.target.value);
+                                  e.target.value = '';
+                                }
+                              }}
+                              defaultValue=""
+                              className="px-2 py-1 text-[11px] font-semibold text-blue-800 bg-blue-50/80 hover:bg-blue-100/80 rounded border border-blue-200 cursor-pointer"
+                              title="Switch document info to another company"
+                            >
+                              <option value="" disabled>Switch Company ▾</option>
+                              {HACKATHON_AUTOFILL_COMPANIES.map(c => (
+                                <option key={c.id} value={c.id}>{c.shortName}</option>
+                              ))}
+                            </select>
 
                             {/* Remove Button */}
                             <button
@@ -1262,15 +2489,28 @@ export const BidderWizard: React.FC<BidderWizardProps> = ({
                             <span>Scan with Camera</span>
                           </button>
 
-                          {/* Quick Sample Load Button */}
-                          <button
-                            type="button"
-                            onClick={() => handleQuickLoadSingleDoc(spec)}
-                            className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-[11px] font-medium rounded transition-colors"
-                            title="Load pre-generated authentic government document sample and verify simultaneously"
-                          >
-                            Use Sample
-                          </button>
+                          {/* Company Document Auto-Fill Dropdown (Replaces old 'Use Sample') */}
+                          <div className="relative inline-block">
+                            <select
+                              id={`autofill-doc-select-${spec.id}`}
+                              onChange={e => {
+                                if (e.target.value) {
+                                  handleAutoFillDocForCompany(spec, e.target.value);
+                                  e.target.value = '';
+                                }
+                              }}
+                              defaultValue=""
+                              className="px-2.5 py-1.5 bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 text-blue-900 border border-blue-300 text-[11px] font-bold rounded-lg shadow-2xs focus:ring-2 focus:ring-blue-500 focus:outline-hidden transition-all cursor-pointer"
+                              title="Auto-fill official document info for one of the 4 demo companies"
+                            >
+                              <option value="" disabled>⚡ Auto-Fill Company Doc ▾</option>
+                              {HACKATHON_AUTOFILL_COMPANIES.map(c => (
+                                <option key={c.id} value={c.id}>
+                                  {c.shortName} ({c.badge})
+                                </option>
+                              ))}
+                            </select>
+                          </div>
                         </div>
                       )}
                     </div>
@@ -1289,7 +2529,67 @@ export const BidderWizard: React.FC<BidderWizardProps> = ({
                   {rejectedCount} Document(s) Rejected by AI Verification
                 </p>
                 <p className="mt-0.5 text-rose-800">
-                  Uploaded files must be official government-issued statutory certificates (with Ashok Stambh emblem, registration ID, and valid authority seal). Personal photos, selfies, or non-statutory uploads cannot be accepted for bid qualification. Please replace rejected documents with valid certificates or use the pre-generated authentic samples.
+                  Uploaded files must be official government-issued statutory certificates (with Ashok Stambh emblem, registration ID, and valid authority seal). Personal photos, selfies, or non-statutory uploads cannot be accepted for bid qualification. Please replace rejected documents with valid certificates or use the 4 company auto-fill dropdowns.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Invalid Number Length / Syntax Warning Banner */}
+          {invalidNoCount > 0 && (
+            <div className="mb-4 p-3.5 rounded-xl bg-purple-50 border border-purple-300 flex items-start space-x-3 text-xs text-purple-900 shadow-2xs">
+              <Hash className="w-4 h-4 text-purple-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-bold text-purple-950">
+                  {invalidNoCount} Document(s) with Invalid Registration Number / Length
+                </p>
+                <p className="mt-0.5 text-purple-800">
+                  Registration numbers extracted by Sarvam AI failed character length or statutory format requirements (e.g. PAN: 10 chars, GSTIN: 15 chars, CIN: 21 chars). Department gateway checks were aborted prior to query. Please upload a valid certificate or select one of the 4 demo companies.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Not Available in Registry Banner */}
+          {notAvailableCount > 0 && (
+            <div className="mb-4 p-3.5 rounded-xl bg-slate-100 border border-slate-300 flex items-start space-x-3 text-xs text-slate-900 shadow-2xs">
+              <AlertCircle className="w-4 h-4 text-slate-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-bold text-slate-950">
+                  {notAvailableCount} Document(s) Not Available in Statutory Registry
+                </p>
+                <p className="mt-0.5 text-slate-700">
+                  The registration number was queried against the department database, but no active matching registration record was found in the official government master repository.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Not Verified (Field Discrepancy) Banner */}
+          {notVerifiedCount > 0 && (
+            <div className="mb-4 p-3.5 rounded-xl bg-rose-50 border border-rose-300 flex items-start space-x-3 text-xs text-rose-900 shadow-2xs">
+              <XCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-bold text-rose-950">
+                  {notVerifiedCount} Document(s) Not Verified by Department Gateway
+                </p>
+                <p className="mt-0.5 text-rose-800">
+                  Document fields (such as legal entity name or state) do not match the master record registered in the statutory database.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Step 1 Declared Profile Discrepancy Banner */}
+          {step1MismatchCount > 0 && (
+            <div className="mb-4 p-3.5 rounded-xl bg-amber-50 border border-amber-300 flex items-start space-x-3 text-xs text-amber-900 shadow-2xs">
+              <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-bold text-amber-950">
+                  {step1MismatchCount} Document(s) Conflict with Step 1 Declared Profile
+                </p>
+                <p className="mt-0.5 text-amber-800">
+                  The statutory gateway verified the documents successfully, but the verified legal entity or ID does not match the organization profile you declared in Step 1. Please update Step 1 or switch company documents.
                 </p>
               </div>
             </div>
@@ -1420,6 +2720,17 @@ export const BidderWizard: React.FC<BidderWizardProps> = ({
                   <span className="block text-[10px] uppercase opacity-80">Risk Level</span>
                   <span className="text-sm font-extrabold">{generatedScorecard.riskLevel} RISK</span>
                 </div>
+
+                {generatedScorecard.complianceVerdict && (
+                  <div className={`px-4 py-2 rounded-lg font-bold text-xs text-center shadow-xs ${
+                    generatedScorecard.complianceVerdict === 'COMPLIANT' ? 'bg-emerald-600 text-white' :
+                    generatedScorecard.complianceVerdict === 'NEEDS REVIEW' ? 'bg-amber-500 text-white' :
+                    'bg-rose-600 text-white'
+                  }`}>
+                    <span className="block text-[9px] uppercase tracking-wider opacity-90">Compliance Verdict</span>
+                    <span className="text-sm font-black tracking-wide">{generatedScorecard.complianceVerdict}</span>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -1558,11 +2869,22 @@ export const BidderWizard: React.FC<BidderWizardProps> = ({
                     ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40'
                     : previewDoc.verificationStatus === 'REJECTED'
                     ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
+                    : previewDoc.verificationStatus === 'INVALID_NO'
+                    ? 'bg-purple-500/20 text-purple-300 border border-purple-500/40'
+                    : previewDoc.verificationStatus === 'NOT_AVAILABLE'
+                    ? 'bg-slate-500/20 text-slate-300 border border-slate-500/40'
+                    : previewDoc.verificationStatus === 'NOT_VERIFIED'
+                    ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
                     : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
                 }`}>
                   {previewDoc.verificationStatus === 'VERIFIED' ? '✓ Verified' :
                    previewDoc.verificationStatus === 'AI_VERIFYING' ? 'Verifying...' :
-                   previewDoc.verificationStatus === 'REJECTED' ? '✕ Rejected (Invalid File)' : 'Discrepancy Flagged'}
+                   previewDoc.verificationStatus === 'REJECTED' ? '✕ Rejected (Invalid File)' :
+                   previewDoc.verificationStatus === 'INVALID_NO' ? '✕ Invalid No. (Length/Format)' :
+                   previewDoc.verificationStatus === 'NOT_AVAILABLE' ? '✕ Not Available in Gateway' :
+                   previewDoc.verificationStatus === 'NOT_VERIFIED' ? '✕ Not Verified (Field Discrepancy)' :
+                   previewDoc.step1CrossCheck?.status === 'MISMATCH_DETECTED' ? '⚠ Discrepancy: Step 1 Mismatch' :
+                   'Discrepancy Flagged'}
                 </span>
 
                 <button
@@ -1594,7 +2916,7 @@ export const BidderWizard: React.FC<BidderWizardProps> = ({
               <div className="bg-slate-50 rounded-xl p-4 border border-slate-200">
                 <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-3 flex items-center space-x-2">
                   <ShieldCheck className="w-4 h-4 text-[#1e3a8a]" />
-                  <span>Simultaneous AI OCR & Portal Gateway Verification Data</span>
+                  <span>Sequential AI OCR & Portal Gateway Verification Data</span>
                 </h4>
 
                 {previewDoc.verificationStatus === 'REJECTED' ? (
@@ -1646,7 +2968,7 @@ export const BidderWizard: React.FC<BidderWizardProps> = ({
                         <div className="p-2 bg-white rounded border border-orange-200">
                           <span className="text-slate-500 text-[10px] uppercase font-bold block">Entity Name Identified</span>
                           <span className="font-bold text-slate-900 truncate block">
-                            {previewDoc.extractedData.organizationName || bidderName}
+                            {previewDoc.extractedData.organizationName || previewDoc.extractedData.entityName || bidderName}
                           </span>
                         </div>
 
@@ -1695,39 +3017,101 @@ export const BidderWizard: React.FC<BidderWizardProps> = ({
                       )}
                     </div>
 
+                    {/* Invalid Number Length / Syntax Alert */}
+                    {previewDoc.verificationStatus === 'INVALID_NO' && (
+                      <div className="p-4 bg-purple-50 rounded-lg border border-purple-200 text-xs space-y-2">
+                        <div className="flex items-center space-x-2 text-purple-900 font-bold text-sm">
+                          <Hash className="w-5 h-5 text-purple-600" />
+                          <span>Forensic Identifier Validation: Invalid ID Length / Format</span>
+                        </div>
+                        <p className="text-purple-800 font-medium">
+                          {previewDoc.departmentResult?.statusMessage || 'The registration number extracted from this document is either too short, too long, or does not follow statutory alphanumeric length requirements.'}
+                        </p>
+                        <div className="text-[11px] text-purple-700 font-medium">
+                          <span className="font-bold">Statutory Gateway Query:</span> Aborted prior to gateway dispatch because character length failed statutory validation.
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Not Available in Gateway Alert */}
+                    {previewDoc.verificationStatus === 'NOT_AVAILABLE' && (
+                      <div className="p-4 bg-slate-100 rounded-lg border border-slate-300 text-xs space-y-2">
+                        <div className="flex items-center space-x-2 text-slate-900 font-bold text-sm">
+                          <AlertCircle className="w-5 h-5 text-slate-600" />
+                          <span>Statutory Gateway Registry: Record Not Available</span>
+                        </div>
+                        <p className="text-slate-700 font-medium">
+                          {previewDoc.departmentResult?.statusMessage || 'The extracted registration number was queried against the department database, but no active matching registration record was found in the government master repository.'}
+                        </p>
+                        {previewDoc.departmentResult && (
+                          <div className="text-[10px] text-slate-600 font-mono flex items-center justify-between pt-1 border-t border-slate-200">
+                            <span>Queried Gateway: {previewDoc.departmentResult.departmentName}</span>
+                            <span>Endpoint: {previewDoc.departmentResult.queryEndpoint}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Not Verified Alert */}
+                    {previewDoc.verificationStatus === 'NOT_VERIFIED' && (
+                      <div className="p-4 bg-rose-50 rounded-lg border border-rose-200 text-xs space-y-2">
+                        <div className="flex items-center space-x-2 text-rose-900 font-bold text-sm">
+                          <XCircle className="w-5 h-5 text-rose-600" />
+                          <span>Statutory Gateway: Not Verified (Field Mismatch)</span>
+                        </div>
+                        <p className="text-rose-800 font-medium">
+                          {previewDoc.departmentResult?.statusMessage || 'The document details do not match the official record maintained in the department database.'}
+                        </p>
+                      </div>
+                    )}
+
                     {/* Section 2: Concerned Department Database API Cross-Check */}
-                    {previewDoc.departmentResult && (
-                      <div className="p-3.5 rounded-lg bg-emerald-50/70 border border-emerald-200">
-                        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-emerald-200 pb-2 mb-3">
+                    {previewDoc.departmentResult && previewDoc.verificationStatus !== 'INVALID_NO' && (
+                      <div className={`p-3.5 rounded-lg border ${
+                        previewDoc.departmentResult.status === 'MATCHED'
+                          ? 'bg-emerald-50/70 border-emerald-200'
+                          : previewDoc.departmentResult.status === 'NOT_AVAILABLE'
+                          ? 'bg-slate-100 border-slate-300'
+                          : 'bg-rose-50/70 border-rose-200'
+                      }`}>
+                        <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-2 mb-3 border-current/20">
                           <div className="flex items-center space-x-2">
-                            <span className="px-2 py-0.5 text-[10px] font-bold rounded bg-emerald-700 text-white uppercase tracking-wider flex items-center space-x-1">
+                            <span className={`px-2 py-0.5 text-[10px] font-bold rounded uppercase tracking-wider flex items-center space-x-1 ${
+                              previewDoc.departmentResult.status === 'MATCHED' ? 'bg-emerald-700 text-white' : 'bg-slate-700 text-white'
+                            }`}>
                               <Landmark className="w-2.5 h-2.5" />
                               <span>Department Database Cross-Check</span>
                             </span>
-                            <span className="text-xs font-bold text-emerald-950">
+                            <span className="text-xs font-bold text-slate-900">
                               {previewDoc.departmentResult.departmentName}
                             </span>
                           </div>
-                          <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-200 text-emerald-900 border border-emerald-300">
-                            ✓ Query Status: {previewDoc.departmentResult.status}
+                          <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full border ${
+                            previewDoc.departmentResult.status === 'MATCHED'
+                              ? 'bg-emerald-200 text-emerald-900 border-emerald-300'
+                              : previewDoc.departmentResult.status === 'NOT_AVAILABLE'
+                              ? 'bg-slate-200 text-slate-800 border-slate-300'
+                              : 'bg-rose-200 text-rose-900 border-rose-300'
+                          }`}>
+                            Query Status: {previewDoc.departmentResult.status}
                           </span>
                         </div>
 
                         {/* Field Comparisons Table */}
                         {previewDoc.departmentResult.fieldComparisons && previewDoc.departmentResult.fieldComparisons.length > 0 ? (
                           <div className="overflow-x-auto">
-                            <table className="w-full text-left text-xs border-collapse bg-white rounded border border-emerald-200">
+                            <table className="w-full text-left text-xs border-collapse bg-white rounded border border-slate-200">
                               <thead>
-                                <tr className="bg-emerald-100/70 text-emerald-950 font-bold border-b border-emerald-200 text-[11px]">
+                                <tr className="bg-slate-100/70 text-slate-950 font-bold border-b border-slate-200 text-[11px]">
                                   <th className="p-2">Attribute</th>
                                   <th className="p-2">Extracted by Sarvam</th>
                                   <th className="p-2">Department Database Value</th>
                                   <th className="p-2 text-center">Cross-Check</th>
                                 </tr>
                               </thead>
-                              <tbody className="divide-y divide-emerald-100 text-[11px]">
+                              <tbody className="divide-y divide-slate-100 text-[11px]">
                                 {previewDoc.departmentResult.fieldComparisons.map((cmp, idx) => (
-                                  <tr key={idx} className="hover:bg-emerald-50/50">
+                                  <tr key={idx} className="hover:bg-slate-50/50">
                                     <td className="p-2 font-medium text-slate-800">{cmp.field}</td>
                                     <td className="p-2 font-mono text-slate-900">{cmp.extractedFromDoc}</td>
                                     <td className="p-2 font-mono text-emerald-900 font-bold">{cmp.databaseMasterValue}</td>
@@ -1748,15 +3132,84 @@ export const BidderWizard: React.FC<BidderWizardProps> = ({
                             </table>
                           </div>
                         ) : (
-                          <p className="text-xs text-emerald-950 font-medium">
+                          <p className="text-xs text-slate-900 font-medium">
                             {previewDoc.departmentResult.statusMessage}
                           </p>
                         )}
 
-                        <div className="mt-3 p-2 bg-emerald-100/50 rounded border border-emerald-200 text-[11px] text-emerald-900 flex flex-wrap items-center justify-between gap-2">
+                        <div className="mt-3 p-2 bg-white/60 rounded border border-slate-200 text-[11px] text-slate-700 flex flex-wrap items-center justify-between gap-2">
                           <span className="font-mono">API Transaction ID: {previewDoc.departmentResult.apiReferenceId}</span>
                           <span>Queried: {previewDoc.departmentResult.queryEndpoint}</span>
                         </div>
+                      </div>
+                    )}
+
+                    {/* Section 3: Step 1 Declared Profile Cross-Check (Executed ONLY after Department API is Verified) */}
+                    {previewDoc.step1CrossCheck && (
+                      <div className={`p-3.5 rounded-lg border text-xs shadow-2xs ${
+                        previewDoc.step1CrossCheck.status === 'CONSISTENT'
+                          ? 'bg-blue-50/70 border-blue-200 text-blue-950'
+                          : 'bg-amber-50/90 border-amber-300 text-amber-950'
+                      }`}>
+                        <div className={`flex flex-wrap items-center justify-between gap-2 border-b pb-2 mb-3 ${
+                          previewDoc.step1CrossCheck.status === 'CONSISTENT' ? 'border-blue-200' : 'border-amber-200'
+                        }`}>
+                          <div className="flex items-center space-x-2">
+                            <span className={`px-2 py-0.5 text-[10px] font-bold rounded uppercase tracking-wider flex items-center space-x-1 ${
+                              previewDoc.step1CrossCheck.status === 'CONSISTENT'
+                                ? 'bg-[#002B5B] text-white'
+                                : 'bg-amber-600 text-white'
+                            }`}>
+                              <Lock className="w-2.5 h-2.5" />
+                              <span>Step 1 Profile Cross-Check</span>
+                            </span>
+                            <span className="text-xs font-bold">
+                              {previewDoc.step1CrossCheck.status === 'CONSISTENT'
+                                ? 'Consistent with Step 1 Declaration'
+                                : 'Step 1 Declared Profile Discrepancy'}
+                            </span>
+                          </div>
+                          <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full border ${
+                            previewDoc.step1CrossCheck.status === 'CONSISTENT'
+                              ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
+                              : 'bg-amber-100 text-amber-900 border-amber-300'
+                          }`}>
+                            {previewDoc.step1CrossCheck.status === 'CONSISTENT' ? '✓ 100% Consistent' : '⚠ Discrepancy Found'}
+                          </span>
+                        </div>
+
+                        {previewDoc.step1CrossCheck.status === 'CONSISTENT' ? (
+                          <div className="p-3 bg-white/90 rounded border border-blue-200 space-y-2">
+                            <div className="flex items-center space-x-2 text-emerald-800 font-bold">
+                              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                              <span>All Declared Attributes Match Verified Department Database</span>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] pt-1 border-t border-slate-100">
+                              <div>
+                                <span className="text-slate-500 block text-[10px] uppercase">Declared Legal Name:</span>
+                                <span className="font-semibold text-slate-800">{rememberedStep1.bidderName}</span>
+                              </div>
+                              <div>
+                                <span className="text-slate-500 block text-[10px] uppercase">Document Verified Entity:</span>
+                                <span className="font-semibold text-emerald-800">{previewDoc.extractedData?.organizationName || previewDoc.extractedData?.entityName || bidderName}</span>
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="space-y-2 text-xs">
+                            <p className="font-semibold text-amber-950">
+                              The statutory gateway verified the certificate, but its verified attributes conflict with your Step 1 declaration:
+                            </p>
+                            <div className="space-y-1.5">
+                              {previewDoc.step1CrossCheck.mismatchDetails.map((msg, idx) => (
+                                <div key={idx} className="p-2 bg-white rounded border border-amber-200 text-amber-950 flex items-start space-x-2">
+                                  <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                                  <span className="font-medium leading-relaxed">{msg}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>

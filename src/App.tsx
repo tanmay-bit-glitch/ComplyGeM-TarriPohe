@@ -16,14 +16,16 @@ import {
 } from './data/mockData';
 import { DEMO_OFFICER_USER, DEMO_BIDDER_USER } from './data/mockUsers';
 import { GovernmentHeader } from './components/GovernmentHeader';
+import { GeMHomePage } from './components/GeMHomePage';
 import { LoginPage } from './components/LoginPage';
 import { BidderWizard } from './components/BidderWizard';
 import { OfficerDashboard } from './components/OfficerDashboard';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { postAuditLog, postNotification, fetchLiveNotifications } from './services/apiService';
 import { Shield, ExternalLink, HelpCircle } from 'lucide-react';
 
 export default function App() {
-  // Authentication & Role State (defaults to null so login page is displayed)
+  // Authentication & Role State
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(() => {
     try {
       const stored = localStorage.getItem('gem_auth_user');
@@ -36,7 +38,8 @@ export default function App() {
     return null;
   });
 
-  const [currentView, setCurrentView] = useState<'OFFICER' | 'BIDDER'>('OFFICER');
+  const [currentView, setCurrentView] = useState<'HOME' | 'OFFICER' | 'BIDDER'>('HOME');
+  const [selectedBidderTenderId, setSelectedBidderTenderId] = useState<string | undefined>(undefined);
   const [tenders, setTenders] = useState<Tender[]>(INITIAL_TENDERS);
   const [submissions, setSubmissions] = useState<BidderSubmission[]>(INITIAL_SUBMISSIONS);
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>(INITIAL_AUDIT_LOGS);
@@ -106,6 +109,7 @@ export default function App() {
 
   const handleLogout = () => {
     setCurrentUser(null);
+    setCurrentView('HOME');
     try {
       localStorage.removeItem('gem_auth_user');
     } catch {
@@ -113,10 +117,21 @@ export default function App() {
     }
   };
 
+  const handleNavigateToWorkspace = (role: UserRole, targetTenderId?: string) => {
+    if (targetTenderId) {
+      setSelectedBidderTenderId(targetTenderId);
+    }
+    if (role === 'PROCUREMENT_OFFICER') {
+      setCurrentView('OFFICER');
+    } else {
+      setCurrentView('BIDDER');
+    }
+  };
+
   // Enforce strict role confinement: bidders NEVER see officer pages
   useEffect(() => {
     if (currentUser) {
-      if (currentUser.role === 'BIDDER' && currentView !== 'BIDDER') {
+      if (currentUser.role === 'BIDDER' && currentView === 'OFFICER') {
         setCurrentView('BIDDER');
       } else if (currentUser.role === 'PROCUREMENT_OFFICER' && currentView === 'BIDDER') {
         setCurrentView('OFFICER');
@@ -276,11 +291,15 @@ export default function App() {
     setNotifications(prev => [notif, ...prev]);
   };
 
-  // If no user is logged in, show the dedicated Role-Based Login Gateway
-  if (!currentUser) {
+  // If current view is HOME or no user is logged in, show the GeM Portal Home Page
+  if (currentView === 'HOME' || !currentUser) {
     return (
-      <LoginPage
+      <GeMHomePage
+        tenders={tenders}
+        currentUser={currentUser}
         onLogin={handleLogin}
+        onLogout={handleLogout}
+        onNavigateToWorkspace={handleNavigateToWorkspace}
         language={language}
         onToggleLanguage={() => setLanguage(l => (l === 'EN' ? 'HI' : 'EN'))}
         magnification={magnification}
@@ -312,25 +331,31 @@ export default function App() {
 
       {/* 2. Main Body Content Switcher - Strictly Role Segregated */}
       <main className="flex-1">
-        {/* Officer Only: Dashboard */}
-        {currentUser.role === 'PROCUREMENT_OFFICER' && currentView === 'OFFICER' && (
-          <OfficerDashboard
-            tenders={tenders}
-            submissions={submissions}
-            onRecordOfficerDecision={handleRecordOfficerDecision}
-            language={language}
-          />
-        )}
+        <ErrorBoundary
+          fallbackTitle="Portal Workspace Recovery"
+          fallbackMessage="An unexpected issue occurred while displaying this workspace. Click below to reload without losing session data."
+        >
+          {/* Officer Only: Dashboard */}
+          {currentUser.role === 'PROCUREMENT_OFFICER' && currentView === 'OFFICER' && (
+            <OfficerDashboard
+              tenders={tenders}
+              submissions={submissions}
+              onRecordOfficerDecision={handleRecordOfficerDecision}
+              language={language}
+            />
+          )}
 
-        {/* Bidder Only: Submission Wizard */}
-        {currentUser.role === 'BIDDER' && currentView === 'BIDDER' && (
-          <BidderWizard
-            tenders={tenders}
-            onSubmitBid={handleSubmitBid}
-            language={language}
-            currentUser={currentUser}
-          />
-        )}
+          {/* Bidder Only: Submission Wizard */}
+          {currentUser.role === 'BIDDER' && currentView === 'BIDDER' && (
+            <BidderWizard
+              tenders={tenders}
+              onSubmitBid={handleSubmitBid}
+              language={language}
+              currentUser={currentUser}
+              initialTenderId={selectedBidderTenderId}
+            />
+          )}
+        </ErrorBoundary>
       </main>
 
       {/* 3. Official Indian Government Footer */}

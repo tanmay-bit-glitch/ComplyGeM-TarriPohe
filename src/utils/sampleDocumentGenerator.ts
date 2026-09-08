@@ -3,16 +3,26 @@ export function generateSampleDocumentDataUrl(
   type: string,
   entityName: string,
   docNumber: string,
-  extra?: { localContent?: number; status?: string; tenderNumber?: string }
+  extra?: {
+    localContent?: number;
+    status?: string;
+    tenderNumber?: string;
+    turnoverText?: string;
+    turnoverValue?: number;
+    entityNameOverride?: string;
+    solvencyAmountText?: string;
+  }
 ): string {
   const width = 600;
   const height = 800;
+
+  const targetEntity = extra?.entityNameOverride || entityName;
 
   let title = 'GOVERNMENT OF INDIA';
   let subtitle = 'STATUTORY COMPLIANCE DOCUMENT';
   let bodyLines = [
     `IDENTIFIER: ${docNumber}`,
-    `LEGAL ENTITY: ${entityName}`,
+    `LEGAL ENTITY: ${targetEntity}`,
     `STATUS: REGISTERED & ACTIVE`,
   ];
   let headerColor = '#1e3a8a';
@@ -25,7 +35,7 @@ export function generateSampleDocumentDataUrl(
     stampText = 'MSME GOVT OF INDIA';
     bodyLines = [
       `UDYAM REGISTRATION NUMBER: ${docNumber}`,
-      `NAME OF ENTERPRISE: ${entityName}`,
+      `NAME OF ENTERPRISE: ${targetEntity}`,
       `CLASSIFICATION: SMALL ENTERPRISE`,
       `MAJOR ACTIVITY: MANUFACTURING / IT SERVICES`,
       `DATE OF INCORPORATION: 14/08/2021`,
@@ -38,7 +48,7 @@ export function generateSampleDocumentDataUrl(
     stampText = 'TAX AUTHORITY APPROVED';
     bodyLines = [
       `REGISTRATION NUMBER (GSTIN): ${docNumber}`,
-      `LEGAL NAME: ${entityName}`,
+      `LEGAL NAME: ${targetEntity}`,
       `CONSTITUTION OF BUSINESS: PUBLIC LIMITED COMPANY`,
       `PRINCIPAL PLACE: TECH PARK, ANDHERI (E), MUMBAI - 400069`,
       `DATE OF LIABILITY: 01/07/2017`,
@@ -52,7 +62,7 @@ export function generateSampleDocumentDataUrl(
     stampText = 'INCOME TAX DEPT';
     bodyLines = [
       `PERMANENT ACCOUNT NUMBER: ${docNumber}`,
-      `NAME: ${entityName}`,
+      `NAME: ${targetEntity}`,
       `CATEGORY: COMPANY`,
       `DATE OF INCORPORATION: 22/04/2016`,
       `ITR FILING STATUS: VERIFIED FOR AY 2025-26`,
@@ -65,7 +75,7 @@ export function generateSampleDocumentDataUrl(
     const percent = extra?.localContent ?? 65;
     bodyLines = [
       `DECLARATION REFERENCE: ${docNumber}`,
-      `BIDDER: ${entityName}`,
+      `BIDDER: ${targetEntity}`,
       `LOCAL CONTENT PERCENTAGE: ${percent}% (DOMESTIC VALUE ADDITION)`,
       `SUPPLIER CATEGORY: CLASS-I LOCAL SUPPLIER (>= 50%)`,
       `MANUFACTURING LOCATION: CHENNAI ELECTRONIC HARDWARE SEZ`,
@@ -78,7 +88,7 @@ export function generateSampleDocumentDataUrl(
     stampText = 'OEM CORPORATE SEAL';
     bodyLines = [
       `OEM AUTHORIZATION ID: ${docNumber}`,
-      `AUTHORIZED PARTNER: ${entityName}`,
+      `AUTHORIZED PARTNER: ${targetEntity}`,
       `AUTHORIZATION SCOPE: GeM TENDER ${extra?.tenderNumber || 'GEM/2026/B/7841288'}`,
       `WARRANTY COMMITMENT: 3 YEARS BACK-TO-BACK OEM ONSITE SUPPORT`,
       `PRINCIPAL OEM: SILICON CORP INTERNATIONAL INDIA PVT LTD`,
@@ -90,9 +100,101 @@ export function generateSampleDocumentDataUrl(
     stampText = 'ADVOCATE & NOTARY GOVT OF INDIA';
     bodyLines = [
       `AFFIDAVIT NUMBER: ${docNumber}`,
-      `DEPONENT: ${entityName}`,
+      `DEPONENT: ${targetEntity}`,
       `STATUTORY DECLARATION: The firm, its directors, and partners have NEVER been debarred, blacklisted or suspended by GeM, Central/State Ministries or CPSEs.`,
       `VERIFIED BY NOTARY PUBLIC, DELHI JURISDICTION`,
+    ];
+  } else if (type === 'MCA_COI' || type === 'INCORPORATION_CERT') {
+    title = 'MINISTRY OF CORPORATE AFFAIRS - ROC';
+    subtitle = 'CERTIFICATE OF INCORPORATION (GOVT OF INDIA)';
+    headerColor = '#0f766e';
+    stampText = 'REGISTRAR OF COMPANIES';
+    bodyLines = [
+      `CORPORATE IDENTIFICATION NUMBER (CIN): ${docNumber}`,
+      `LEGAL NAME: ${targetEntity}`,
+      `COMPANY CATEGORY: COMPANY LIMITED BY SHARES`,
+      `CLASS OF COMPANY: PRIVATE LIMITED COMPANY`,
+      `DATE OF INCORPORATION: 12/04/2022`,
+      `REGISTERED OFFICE: NATIONAL CAPITAL TERRITORY OF DELHI`,
+      `PROVISIONS: INCORPORATED UNDER COMPANIES ACT 2013 (18 OF 2013)`,
+    ];
+  } else if (type === 'DSC_DECLARATION') {
+    title = 'CONTROLLER OF CERTIFYING AUTHORITIES';
+    subtitle = 'DIGITAL SIGNATURE CERTIFICATE DECLARATION';
+    headerColor = '#0284c7';
+    stampText = 'CCA ROOT CA INDIA';
+    bodyLines = [
+      `DSC IDENTIFIER: ${docNumber}`,
+      `ORGANIZATION / BIDDER: ${targetEntity}`,
+      `SIGNATORY: ${extra?.status || 'Authorized Signatory'}`,
+      `CERTIFICATE CLASS: CLASS 3 (SIGNING & ENCRYPTION)`,
+      `ALGORITHM: SHA-256 WITH RSA 2048-BIT`,
+      `STATUS: VALID & UNREVOKED ON OCSP RESPONDER`,
+    ];
+  } else if (type === 'CA_TURNOVER_CERT') {
+    title = 'INSTITUTE OF CHARTERED ACCOUNTANTS OF INDIA';
+    subtitle = 'STATUTORY AUDITOR TURNOVER CERTIFICATE';
+    headerColor = '#7c3aed';
+    stampText = 'CHARTERED ACCOUNTANT SEAL';
+    const turnoverStr = extra?.turnoverText || 'AVERAGE ANNUAL TURNOVER: ₹2,85,00,000 (TWO CRORE EIGHTY FIVE LAKHS)';
+    bodyLines = [
+      `UNIQUE DOCUMENT IDENTIFICATION NUMBER (UDIN): ${docNumber}`,
+      `CLIENT ENTITY: ${targetEntity}`,
+      turnoverStr.startsWith('AVERAGE ANNUAL TURNOVER:') ? turnoverStr : `AVERAGE ANNUAL TURNOVER: ${turnoverStr}`,
+      `AUDIT PERIOD: 3 CONSECUTIVE ASSESSED FINANCIAL YEARS`,
+      `AUDIT OPINION: UNMODIFIED / CLEAN OPINION`,
+      `UDIN STATUS: VALIDATED ON ICAI MASTER PORTAL`,
+    ];
+  } else if (type === 'BANK_DETAILS') {
+    title = 'PFMS BANK MANDATE & CANCELLED CHEQUE';
+    subtitle = 'PUBLIC FINANCIAL MANAGEMENT SYSTEM';
+    headerColor = '#047857';
+    stampText = 'BANK PENNY DROP VERIFIED';
+    bodyLines = [
+      `ACCOUNT NUMBER: XXXXXXXXXXXX1001`,
+      `ACCOUNT HOLDER: ${targetEntity}`,
+      `IFSC CODE: ${docNumber}`,
+      `BANK NAME: DEMO NATIONAL BANK`,
+      `ACCOUNT TYPE: CURRENT ACCOUNT`,
+      `MANDATE STATUS: ACTIVE PFMS E-PAYMENT ENROLMENT`,
+    ];
+  } else if (type === 'BIS_CERT') {
+    title = 'BUREAU OF INDIAN STANDARDS - GOVT OF INDIA';
+    subtitle = 'PRODUCT CONFORMANCE & ISI REGISTRATION';
+    headerColor = '#b91c1c';
+    stampText = 'STANDARD MARK (ISI)';
+    bodyLines = [
+      `BIS REGISTRATION NUMBER: ${docNumber}`,
+      `MANUFACTURER / BIDDER: ${targetEntity}`,
+      `PRODUCT: PATIENT MONITORING DEVICE (MODEL DMD-PM100)`,
+      `INDIAN STANDARD: IS 13450 / IEC 60601-1`,
+      `CONFORMANCE: CERTIFIED TO NATIONAL SAFETY STANDARDS`,
+    ];
+  } else if (type === 'BANK_SOLVENCY') {
+    title = 'BANK SOLVENCY CERTIFICATE';
+    subtitle = 'SCHEDULED COMMERCIAL BANK';
+    headerColor = '#1d4ed8';
+    stampText = 'BANK OFFICIAL SEAL';
+    const solvencyStr = extra?.solvencyAmountText || 'SOLVENCY AMOUNT: ₹1,50,00,000 (ONE CRORE FIFTY LAKHS)';
+    bodyLines = [
+      `CERTIFICATE REFERENCE: ${docNumber}`,
+      `CUSTOMER ENTITY: ${targetEntity}`,
+      solvencyStr.startsWith('SOLVENCY AMOUNT:') ? solvencyStr : `SOLVENCY AMOUNT: ${solvencyStr}`,
+      `FINANCIAL STANDING: SOLVENT & CREDITWORTHY`,
+      `TRANSACTION REFERENCE: SFMS-BG-2026-9912`,
+    ];
+  } else if (type === 'INTEGRITY_PACT') {
+    title = 'CENTRAL VIGILANCE COMMISSION (CVC)';
+    subtitle = 'PRE-CONTRACT INTEGRITY PACT (GOVT OF INDIA)';
+    headerColor = '#334155';
+    stampText = 'INDEPENDENT EXTERNAL MONITOR';
+    bodyLines = [
+      `PACT REFERENCE NUMBER: ${docNumber}`,
+      `BIDDER ENTITY: ${entityName}`,
+      `TENDER NUMBER: ${extra?.tenderNumber || 'GEM/2026/B/HIGH-VALUE'}`,
+      `COMMITMENT: ZERO CORRUPT, FRAUDULENT OR COLLUSIVE PRACTICES`,
+      `MONITORED BY: INDEPENDENT EXTERNAL MONITOR (IEM), GeM PANEL`,
+      `STATUS: EXECUTED & DULY COUNTERSIGNED`,
     ];
   }
 

@@ -1,0 +1,1583 @@
+{
+  "metadata": {
+    "dataset_name": "complygem-hackathon-bidder-submission-mock-data",
+    "version": "2.0.0",
+    "environment": "demo-only",
+    "generated_on": "2026-09-07",
+    "notice": "All identifiers, companies, people, documents, document numbers, issuing bodies, dates, amounts, statuses, and extracted fields are synthetic mock data. Do not send them to government portals or treat them as proof of compliance.",
+    "scoring_note": "This dataset deliberately contains no compliance score, risk level, decision, or recommendation. Derive these only through your rule engine."
+  },
+  "bidder_submissions": [
+    {
+      "bidder_id": "acme-tech",
+      "bidder_profile": {
+        "legal_name": "Acme Technology Solutions Private Limited",
+        "bidder_type": "Private Limited Company",
+        "cin": "U62010DL2022PTC400001",
+        "pan": "AACCA1001A",
+        "gstin": "07AACCA1001A1Z0",
+        "registered_address": "Demo Building 12, Innovation District, New Delhi, Delhi 110001",
+        "authorized_signatory": "Aarav Mehta",
+        "signatory_designation": "Director"
+      },
+      "tender_context": {
+        "tender_id": "GEM-DEMO-IT-1001",
+        "tender_title": "Managed Software Development and Support Services",
+        "tender_value_inr": 5000000,
+        "category": "IT Services",
+        "requires_msme_proof": false,
+        "requires_oem_authorization": false,
+        "requires_make_in_india_declaration": true,
+        "requires_integrity_pact": false
+      },
+      "mandatory_documents": [
+        {
+          "document_id": "ACME-M-01",
+          "document_type": "PAN Card",
+          "required_for_tender": true,
+          "submitted": true,
+          "file_name": "acme_pan_card.pdf",
+          "mime_type": "application/pdf",
+          "verification_status": "verified",
+          "extracted_fields": {
+            "pan": "AACCA1001A",
+            "holder_name": "ACME TECHNOLOGY SOLUTIONS PRIVATE LIMITED",
+            "entity_type": "Company",
+            "expiry": null
+          },
+          "detected_issues": []
+        },
+        {
+          "document_id": "ACME-M-02",
+          "document_type": "GST Registration Certificate",
+          "required_for_tender": true,
+          "submitted": true,
+          "file_name": "acme_gst_certificate.pdf",
+          "mime_type": "application/pdf",
+          "verification_status": "verified",
+          "extracted_fields": {
+            "gstin": "07AACCA1001A1Z0",
+            "legal_name": "ACME TECHNOLOGY SOLUTIONS PRIVATE LIMITED",
+            "registration_status": "Active",
+            "state": "Delhi",
+            "registration_date": "2022-06-01"
+          },
+          "detected_issues": []
+        },
+        {
+          "document_id": "ACME-M-03",
+          "document_type": "Certificate of Incorporation",
+          "required_for_tender": true,
+          "submitted": true,
+          "file_name": "acme_certificate_of_incorporation.pdf",
+          "mime_type": "application/pdf",
+          "verification_status": "verified",
+          "extracted_fields": {
+            "cin": "U62010DL2022PTC400001",
+            "company_name": "Acme Technology Solutions Private Limited",
+            "incorporation_date": "2022-04-12",
+            "roc": "Delhi",
+            "company_type": "Private Limited Company"
+          },
+          "detected_issues": []
+        },
+        {
+          "document_id": "ACME-M-04",
+          "document_type": "Udyam/MSME Registration Certificate",
+          "required_for_tender": false,
+          "submitted": true,
+          "file_name": "acme_udyam_certificate.pdf",
+          "mime_type": "application/pdf",
+          "verification_status": "verified",
+          "extracted_fields": {
+            "udyam_number": "UDYAM-DL-00-0001001",
+            "enterprise_category": "Small",
+            "enterprise_name": "Acme Technology Solutions Private Limited",
+            "activity_type": "Services",
+            "status": "Active"
+          },
+          "detected_issues": []
+        },
+        {
+          "document_id": "ACME-M-05",
+          "document_type": "Digital Signature Certificate Declaration",
+          "required_for_tender": true,
+          "submitted": true,
+          "file_name": "acme_dsc_declaration.pdf",
+          "mime_type": "application/pdf",
+          "verification_status": "verified",
+          "extracted_fields": {
+            "signatory_name": "Aarav Mehta",
+            "certificate_class": "Class 3",
+            "certificate_status": "Valid",
+            "valid_until": "2027-05-31"
+          },
+          "detected_issues": []
+        },
+        {
+          "document_id": "ACME-M-06",
+          "document_type": "Bid Security Declaration",
+          "required_for_tender": true,
+          "submitted": true,
+          "file_name": "acme_bid_security_declaration.pdf",
+          "mime_type": "application/pdf",
+          "verification_status": "verified",
+          "extracted_fields": {
+            "declaration_type": "Bid Security Declaration",
+            "emd_exemption_claimed": true,
+            "basis": "Valid MSME/Udyam registration",
+            "signed_by": "Aarav Mehta",
+            "signed_date": "2026-09-05"
+          },
+          "detected_issues": []
+        },
+        {
+          "document_id": "ACME-M-07",
+          "document_type": "Power of Attorney",
+          "required_for_tender": false,
+          "submitted": false,
+          "file_name": null,
+          "mime_type": null,
+          "verification_status": "not_applicable",
+          "extracted_fields": {},
+          "detected_issues": []
+        }
+      ],
+      "financial_documents": [
+        {
+          "document_id": "ACME-F-01",
+          "document_type": "Audited Financial Statements",
+          "required_for_tender": true,
+          "submitted": true,
+          "file_name": "acme_audited_financials_2023_2026.pdf",
+          "mime_type": "application/pdf",
+          "verification_status": "verified",
+          "extracted_fields": {
+            "financial_years": [
+              "2023-24",
+              "2024-25",
+              "2025-26"
+            ],
+            "average_annual_turnover_inr": 28500000,
+            "net_worth_inr": 11200000,
+            "auditor_name": "Demo & Associates",
+            "audit_opinion": "Unmodified"
+          },
+          "detected_issues": []
+        },
+        {
+          "document_id": "ACME-F-02",
+          "document_type": "Income Tax Return Acknowledgements",
+          "required_for_tender": true,
+          "submitted": true,
+          "file_name": "acme_itr_acknowledgements.pdf",
+          "mime_type": "application/pdf",
+          "verification_status": "verified",
+          "extracted_fields": {
+            "assessment_years": [
+              "2024-25",
+              "2025-26",
+              "2026-27"
+            ],
+            "pan": "AACCA1001A",
+            "filing_status": "Filed"
+          },
+          "detected_issues": []
+        },
+        {
+          "document_id": "ACME-F-03",
+          "document_type": "CA Turnover Certificate",
+          "required_for_tender": true,
+          "submitted": true,
+          "file_name": "acme_turnover_certificate.pdf",
+          "mime_type": "application/pdf",
+          "verification_status": "verified",
+          "extracted_fields": {
+            "average_turnover_inr": 28500000,
+            "period": "2023-24 to 2025-26",
+            "ca_name": "Demo & Associates",
+            "udin": "MOCK-UDIN-ACME-001"
+          },
+          "detected_issues": []
+        },
+        {
+          "document_id": "ACME-F-04",
+          "document_type": "Bank Solvency Certificate",
+          "required_for_tender": false,
+          "submitted": true,
+          "file_name": "acme_solvency_certificate.pdf",
+          "mime_type": "application/pdf",
+          "verification_status": "verified",
+          "extracted_fields": {
+            "bank_name": "Demo National Bank",
+            "solvency_amount_inr": 15000000,
+            "certificate_date": "2026-08-28",
+            "valid_until": "2027-02-27"
+          },
+          "detected_issues": []
+        },
+        {
+          "document_id": "ACME-F-05",
+          "document_type": "Cancelled Cheque / Bank Details",
+          "required_for_tender": true,
+          "submitted": true,
+          "file_name": "acme_cancelled_cheque.pdf",
+          "mime_type": "application/pdf",
+          "verification_status": "verified",
+          "extracted_fields": {
+            "account_holder": "Acme Technology Solutions Private Limited",
+            "bank_name": "Demo National Bank",
+            "ifsc": "DMNB0001001",
+            "account_last_4": "1001"
+          },
+          "detected_issues": []
+        }
+      ],
+      "technical_documents": [
+        {
+          "document_id": "ACME-T-01",
+          "document_type": "Experience Certificates / Work Orders",
+          "required_for_tender": true,
+          "submitted": true,
+          "file_name": "acme_experience_certificates.pdf",
+          "mime_type": "application/pdf",
+          "verification_status": "verified",
+          "extracted_fields": {
+            "similar_projects_count": 4,
+            "largest_completed_order_inr": 7500000,
+            "completion_status": "Completed",
+            "period": "2023-2026"
+          },
+          "detected_issues": []
+        },
+        {
+          "document_id": "ACME-T-02",
+          "document_type": "Technical Compliance Statement",
+          "required_for_tender": true,
+          "submitted": true,
+          "file_name": "acme_technical_compliance_statement.pdf",
+          "mime_type": "application/pdf",
+          "verification_status": "verified",
+          "extracted_fields": {
+            "specifications_total": 18,
+            "specifications_compliant": 18,
+            "deviations": 0,
+            "signed_by": "Aarav Mehta"
+          },
+          "detected_issues": []
+        },
+        {
+          "document_id": "ACME-T-03",
+          "document_type": "Product / Service Datasheet",
+          "required_for_tender": true,
+          "submitted": true,
+          "file_name": "acme_service_datasheet.pdf",
+          "mime_type": "application/pdf",
+          "verification_status": "verified",
+          "extracted_fields": {
+            "service_name": "Managed Software Development and Support",
+            "sla_uptime_percent": 99.5,
+            "support_hours": "24x7",
+            "technology_stack": [
+              "Web",
+              "Cloud",
+              "API"
+            ]
+          },
+          "detected_issues": []
+        },
+        {
+          "document_id": "ACME-T-04",
+          "document_type": "Quality Certification",
+          "required_for_tender": false,
+          "submitted": true,
+          "file_name": "acme_iso_9001.pdf",
+          "mime_type": "application/pdf",
+          "verification_status": "verified",
+          "extracted_fields": {
+            "certificate_type": "ISO 9001:2015",
+            "certificate_number": "ISO-DEMO-ACME-1001",
+            "valid_until": "2027-03-31",
+            "issuing_body": "Demo Certification Services"
+          },
+          "detected_issues": []
+        },
+        {
+          "document_id": "ACME-T-05",
+          "document_type": "OEM Authorization Letter",
+          "required_for_tender": false,
+          "submitted": false,
+          "file_name": null,
+          "mime_type": null,
+          "verification_status": "not_applicable",
+          "extracted_fields": {},
+          "detected_issues": []
+        },
+        {
+          "document_id": "ACME-T-06",
+          "document_type": "Make in India / Local Content Declaration",
+          "required_for_tender": true,
+          "submitted": true,
+          "file_name": "acme_make_in_india_declaration.pdf",
+          "mime_type": "application/pdf",
+          "verification_status": "verified",
+          "extracted_fields": {
+            "local_content_percent": 82,
+            "classification": "Class I Local Supplier",
+            "signed_by": "Aarav Mehta",
+            "declaration_date": "2026-09-05"
+          },
+          "detected_issues": []
+        }
+      ],
+      "legal_documents": [
+        {
+          "document_id": "ACME-L-01",
+          "document_type": "Covering Letter",
+          "required_for_tender": true,
+          "submitted": true,
+          "file_name": "acme_covering_letter.pdf",
+          "mime_type": "application/pdf",
+          "verification_status": "verified",
+          "extracted_fields": {
+            "tender_id": "GEM-DEMO-IT-1001",
+            "signed_by": "Aarav Mehta",
+            "signed_date": "2026-09-05"
+          },
+          "detected_issues": []
+        },
+        {
+          "document_id": "ACME-L-02",
+          "document_type": "Non-Blacklisting Declaration",
+          "required_for_tender": true,
+          "submitted": true,
+          "file_name": "acme_non_blacklisting_declaration.pdf",
+          "mime_type": "application/pdf",
+          "verification_status": "verified",
+          "extracted_fields": {
+            "declaration": "Not blacklisted or debarred",
+            "signed_by": "Aarav Mehta",
+            "declaration_date": "2026-09-05"
+          },
+          "detected_issues": []
+        },
+        {
+          "document_id": "ACME-L-03",
+          "document_type": "Non-Collusion Declaration",
+          "required_for_tender": true,
+          "submitted": true,
+          "file_name": "acme_non_collusion_declaration.pdf",
+          "mime_type": "application/pdf",
+          "verification_status": "verified",
+          "extracted_fields": {
+            "declaration": "Bid prepared independently",
+            "signed_by": "Aarav Mehta",
+            "declaration_date": "2026-09-05"
+          },
+          "detected_issues": []
+        },
+        {
+          "document_id": "ACME-L-04",
+          "document_type": "MSME Status Declaration",
+          "required_for_tender": false,
+          "submitted": true,
+          "file_name": "acme_msme_declaration.pdf",
+          "mime_type": "application/pdf",
+          "verification_status": "verified",
+          "extracted_fields": {
+            "udyam_number": "UDYAM-DL-00-0001001",
+            "enterprise_category": "Small",
+            "emd_exemption_claimed": true
+          },
+          "detected_issues": []
+        },
+        {
+          "document_id": "ACME-L-05",
+          "document_type": "Integrity Pact",
+          "required_for_tender": false,
+          "submitted": false,
+          "file_name": null,
+          "mime_type": null,
+          "verification_status": "not_applicable",
+          "extracted_fields": {},
+          "detected_issues": []
+        }
+      ]
+    },
+    {
+      "bidder_id": "beta-systems",
+      "bidder_profile": {
+        "legal_name": "Beta Systems Private Limited",
+        "bidder_type": "Private Limited Company",
+        "cin": "U62099MH2021PTC350002",
+        "pan": "AACCB2002B",
+        "gstin": "27AACCB2002B1Z1",
+        "registered_address": "Demo Office 48, Business Park, Mumbai, Maharashtra 400001",
+        "authorized_signatory": "Kabir Shah",
+        "signatory_designation": "Director"
+      },
+      "tender_context": {
+        "tender_id": "GEM-DEMO-IT-1001",
+        "tender_title": "Managed Software Development and Support Services",
+        "tender_value_inr": 5000000,
+        "category": "IT Services",
+        "requires_msme_proof": false,
+        "requires_oem_authorization": false,
+        "requires_make_in_india_declaration": true,
+        "requires_integrity_pact": false
+      },
+      "mandatory_documents": [
+        {
+          "document_id": "BETA-M-01",
+          "document_type": "PAN Card",
+          "required_for_tender": true,
+          "submitted": true,
+          "file_name": "beta_pan_card.pdf",
+          "mime_type": "application/pdf",
+          "verification_status": "verified",
+          "extracted_fields": {
+            "pan": "AACCB2002B",
+            "holder_name": "BETA SYSTEMS PRIVATE LIMITED",
+            "entity_type": "Company"
+          },
+          "detected_issues": []
+        },
+        {
+          "document_id": "BETA-M-02",
+          "document_type": "GST Registration Certificate",
+          "required_for_tender": true,
+          "submitted": true,
+          "file_name": "beta_gst_certificate.pdf",
+          "mime_type": "application/pdf",
+          "verification_status": "warning",
+          "extracted_fields": {
+            "gstin": "27AACCB2002B1Z1",
+            "legal_name": "BETA SYSTEMS PRIVATE LIMITED",
+            "registration_status": "Active",
+            "state": "Maharashtra",
+            "last_return_filing_period": "2026-03"
+          },
+          "detected_issues": [
+            "Last GST return filing is older than the configured recency threshold"
+          ]
+        },
+        {
+          "document_id": "BETA-M-03",
+          "document_type": "Certificate of Incorporation",
+          "required_for_tender": true,
+          "submitted": true,
+          "file_name": "beta_certificate_of_incorporation.pdf",
+          "mime_type": "application/pdf",
+          "verification_status": "verified",
+          "extracted_fields": {
+            "cin": "U62099MH2021PTC350002",
+            "company_name": "Beta Systems Private Limited",
+            "incorporation_date": "2021-09-18",
+            "roc": "Mumbai"
+          },
+          "detected_issues": []
+        },
+        {
+          "document_id": "BETA-M-04",
+          "document_type": "Udyam/MSME Registration Certificate",
+          "required_for_tender": false,
+          "submitted": true,
+          "file_name": "beta_udyam_certificate.pdf",
+          "mime_type": "application/pdf",
+          "verification_status": "verified",
+          "extracted_fields": {
+            "udyam_number": "UDYAM-MH-00-0002002",
+            "enterprise_category": "Micro",
+            "enterprise_name": "Beta Systems Private Limited",
+            "status": "Active"
+          },
+          "detected_issues": []
+        },
+        {
+          "document_id": "BETA-M-05",
+          "document_type": "Digital Signature Certificate Declaration",
+          "required_for_tender": true,
+          "submitted": true,
+          "file_name": "beta_dsc_declaration.pdf",
+          "mime_type": "application/pdf",
+          "verification_status": "verified",
+          "extracted_fields": {
+            "signatory_name": "Kabir Shah",
+            "certificate_class": "Class 3",
+            "certificate_status": "Valid",
+            "valid_until": "2026-11-10"
+          },
+          "detected_issues": []
+        },
+        {
+          "document_id": "BETA-M-06",
+          "document_type": "Bid Security Declaration",
+          "required_for_tender": true,
+          "submitted": true,
+          "file_name": "beta_bid_security_declaration.pdf",
+          "mime_type": "application/pdf",
+          "verification_status": "verified",
+          "extracted_fields": {
+            "declaration_type": "Bid Security Declaration",
+            "emd_exemption_claimed": true,
+            "basis": "Valid MSME/Udyam registration",
+            "signed_by": "Kabir Shah"
+          },
+          "detected_issues": []
+        },
+        {
+          "document_id": "BETA-M-07",
+          "document_type": "Power of Attorney",
+          "required_for_tender": false,
+          "submitted": false,
+          "file_name": null,
+          "mime_type": null,
+          "verification_status": "not_applicable",
+          "extracted_fields": {},
+          "detected_issues": []
+        }
+      ],
+      "financial_documents": [
+        {
+          "document_id": "BETA-F-01",
+          "document_type": "Audited Financial Statements",
+          "required_for_tender": true,
+          "submitted": false,
+          "file_name": null,
+          "mime_type": null,
+          "verification_status": "missing",
+          "extracted_fields": {},
+          "detected_issues": [
+            "Required audited financial statements were not submitted"
+          ]
+        },
+        {
+          "document_id": "BETA-F-02",
+          "document_type": "Income Tax Return Acknowledgements",
+          "required_for_tender": true,
+          "submitted": true,
+          "file_name": "beta_itr_acknowledgements.pdf",
+          "mime_type": "application/pdf",
+          "verification_status": "verified",
+          "extracted_fields": {
+            "assessment_years": [
+              "2024-25",
+              "2025-26",
+              "2026-27"
+            ],
+            "pan": "AACCB2002B",
+            "filing_status": "Filed"
+          },
+          "detected_issues": []
+        },
+        {
+          "document_id": "BETA-F-03",
+          "document_type": "CA Turnover Certificate",
+          "required_for_tender": true,
+          "submitted": true,
+          "file_name": "beta_turnover_certificate.pdf",
+          "mime_type": "application/pdf",
+          "verification_status": "warning",
+          "extracted_fields": {
+            "average_turnover_inr": 4200000,
+            "period": "2023-24 to 2025-26",
+            "ca_name": "Demo CA Services",
+            "udin": "MOCK-UDIN-BETA-002"
+          },
+          "detected_issues": [
+            "Average turnover may be below the tender threshold configured by the buyer"
+          ]
+        },
+        {
+          "document_id": "BETA-F-04",
+          "document_type": "Bank Solvency Certificate",
+          "required_for_tender": false,
+          "submitted": false,
+          "file_name": null,
+          "mime_type": null,
+          "verification_status": "missing",
+          "extracted_fields": {},
+          "detected_issues": [
+            "Optional document not submitted"
+          ]
+        },
+        {
+          "document_id": "BETA-F-05",
+          "document_type": "Cancelled Cheque / Bank Details",
+          "required_for_tender": true,
+          "submitted": true,
+          "file_name": "beta_cancelled_cheque.pdf",
+          "mime_type": "application/pdf",
+          "verification_status": "verified",
+          "extracted_fields": {
+            "account_holder": "Beta Systems Private Limited",
+            "bank_name": "Demo Commercial Bank",
+            "ifsc": "DMCB0002002",
+            "account_last_4": "2002"
+          },
+          "detected_issues": []
+        }
+      ],
+      "technical_documents": [
+        {
+          "document_id": "BETA-T-01",
+          "document_type": "Experience Certificates / Work Orders",
+          "required_for_tender": true,
+          "submitted": true,
+          "file_name": "beta_experience_certificates.pdf",
+          "mime_type": "application/pdf",
+          "verification_status": "warning",
+          "extracted_fields": {
+            "similar_projects_count": 1,
+            "largest_completed_order_inr": 650000,
+            "completion_status": "Completed",
+            "period": "2025-2026"
+          },
+          "detected_issues": [
+            "Only one similar project is supplied; buyer threshold may require more"
+          ]
+        },
+        {
+          "document_id": "BETA-T-02",
+          "document_type": "Technical Compliance Statement",
+          "required_for_tender": true,
+          "submitted": true,
+          "file_name": "beta_technical_compliance_statement.pdf",
+          "mime_type": "application/pdf",
+          "verification_status": "warning",
+          "extracted_fields": {
+            "specifications_total": 18,
+            "specifications_compliant": 16,
+            "deviations": 2,
+            "signed_by": "Kabir Shah"
+          },
+          "detected_issues": [
+            "Two technical deviations declared"
+          ]
+        },
+        {
+          "document_id": "BETA-T-03",
+          "document_type": "Product / Service Datasheet",
+          "required_for_tender": true,
+          "submitted": true,
+          "file_name": "beta_service_datasheet.pdf",
+          "mime_type": "application/pdf",
+          "verification_status": "verified",
+          "extracted_fields": {
+            "service_name": "Software Development Support",
+            "sla_uptime_percent": 98.5,
+            "support_hours": "Business hours"
+          },
+          "detected_issues": []
+        },
+        {
+          "document_id": "BETA-T-04",
+          "document_type": "Quality Certification",
+          "required_for_tender": false,
+          "submitted": false,
+          "file_name": null,
+          "mime_type": null,
+          "verification_status": "missing",
+          "extracted_fields": {},
+          "detected_issues": [
+            "No quality certificate submitted"
+          ]
+        },
+        {
+          "document_id": "BETA-T-05",
+          "document_type": "OEM Authorization Letter",
+          "required_for_tender": false,
+          "submitted": false,
+          "file_name": null,
+          "mime_type": null,
+          "verification_status": "not_applicable",
+          "extracted_fields": {},
+          "detected_issues": []
+        },
+        {
+          "document_id": "BETA-T-06",
+          "document_type": "Make in India / Local Content Declaration",
+          "required_for_tender": true,
+          "submitted": false,
+          "file_name": null,
+          "mime_type": null,
+          "verification_status": "missing",
+          "extracted_fields": {},
+          "detected_issues": [
+            "Required local-content declaration was not submitted"
+          ]
+        }
+      ],
+      "legal_documents": [
+        {
+          "document_id": "BETA-L-01",
+          "document_type": "Covering Letter",
+          "required_for_tender": true,
+          "submitted": true,
+          "file_name": "beta_covering_letter.pdf",
+          "mime_type": "application/pdf",
+          "verification_status": "verified",
+          "extracted_fields": {
+            "tender_id": "GEM-DEMO-IT-1001",
+            "signed_by": "Kabir Shah",
+            "signed_date": "2026-09-05"
+          },
+          "detected_issues": []
+        },
+        {
+          "document_id": "BETA-L-02",
+          "document_type": "Non-Blacklisting Declaration",
+          "required_for_tender": true,
+          "submitted": true,
+          "file_name": "beta_non_blacklisting_declaration.pdf",
+          "mime_type": "application/pdf",
+          "verification_status": "verified",
+          "extracted_fields": {
+            "declaration": "Not blacklisted or debarred",
+            "signed_by": "Kabir Shah"
+          },
+          "detected_issues": []
+        },
+        {
+          "document_id": "BETA-L-03",
+          "document_type": "Non-Collusion Declaration",
+          "required_for_tender": true,
+          "submitted": true,
+          "file_name": "beta_non_collusion_declaration.pdf",
+          "mime_type": "application/pdf",
+          "verification_status": "verified",
+          "extracted_fields": {
+            "declaration": "Bid prepared independently",
+            "signed_by": "Kabir Shah"
+          },
+          "detected_issues": []
+        },
+        {
+          "document_id": "BETA-L-04",
+          "document_type": "MSME Status Declaration",
+          "required_for_tender": false,
+          "submitted": true,
+          "file_name": "beta_msme_declaration.pdf",
+          "mime_type": "application/pdf",
+          "verification_status": "verified",
+          "extracted_fields": {
+            "udyam_number": "UDYAM-MH-00-0002002",
+            "enterprise_category": "Micro",
+            "emd_exemption_claimed": true
+          },
+          "detected_issues": []
+        },
+        {
+          "document_id": "BETA-L-05",
+          "document_type": "Integrity Pact",
+          "required_for_tender": false,
+          "submitted": false,
+          "file_name": null,
+          "mime_type": null,
+          "verification_status": "not_applicable",
+          "extracted_fields": {},
+          "detected_issues": []
+        }
+      ]
+    },
+    {
+      "bidder_id": "gamma-infra",
+      "bidder_profile": {
+        "legal_name": "Gamma Infrastructure Projects Private Limited",
+        "bidder_type": "Private Limited Company",
+        "cin": "U41000KA2017PTC300003",
+        "pan": "AACCG3003C",
+        "gstin": "29AACCG3003C1Z2",
+        "registered_address": "Demo Industrial Estate 7, Bengaluru, Karnataka 560001",
+        "authorized_signatory": "Dev Malhotra",
+        "signatory_designation": "Managing Director"
+      },
+      "tender_context": {
+        "tender_id": "GEM-DEMO-CON-2001",
+        "tender_title": "Civil Works and Facility Upgrade Package",
+        "tender_value_inr": 150000000,
+        "category": "Civil Works",
+        "requires_msme_proof": false,
+        "requires_oem_authorization": false,
+        "requires_make_in_india_declaration": true,
+        "requires_integrity_pact": true
+      },
+      "mandatory_documents": [
+        {
+          "document_id": "GAMMA-M-01",
+          "document_type": "PAN Card",
+          "required_for_tender": true,
+          "submitted": true,
+          "file_name": "gamma_pan_card.pdf",
+          "mime_type": "application/pdf",
+          "verification_status": "verified",
+          "extracted_fields": {
+            "pan": "AACCG3003C",
+            "holder_name": "GAMMA INFRASTRUCTURE PROJECTS PRIVATE LIMITED",
+            "entity_type": "Company"
+          },
+          "detected_issues": []
+        },
+        {
+          "document_id": "GAMMA-M-02",
+          "document_type": "GST Registration Certificate",
+          "required_for_tender": true,
+          "submitted": true,
+          "file_name": "gamma_gst_certificate.pdf",
+          "mime_type": "application/pdf",
+          "verification_status": "verified",
+          "extracted_fields": {
+            "gstin": "29AACCG3003C1Z2",
+            "legal_name": "GAMMA INFRASTRUCTURE PROJECTS PRIVATE LIMITED",
+            "registration_status": "Active",
+            "state": "Karnataka",
+            "registration_date": "2018-07-20"
+          },
+          "detected_issues": []
+        },
+        {
+          "document_id": "GAMMA-M-03",
+          "document_type": "Certificate of Incorporation",
+          "required_for_tender": true,
+          "submitted": true,
+          "file_name": "gamma_certificate_of_incorporation.pdf",
+          "mime_type": "application/pdf",
+          "verification_status": "verified",
+          "extracted_fields": {
+            "cin": "U41000KA2017PTC300003",
+            "company_name": "Gamma Infrastructure Projects Private Limited",
+            "incorporation_date": "2017-01-25",
+            "roc": "Bengaluru"
+          },
+          "detected_issues": []
+        },
+        {
+          "document_id": "GAMMA-M-04",
+          "document_type": "Udyam/MSME Registration Certificate",
+          "required_for_tender": false,
+          "submitted": false,
+          "file_name": null,
+          "mime_type": null,
+          "verification_status": "not_applicable",
+          "extracted_fields": {},
+          "detected_issues": []
+        },
+        {
+          "document_id": "GAMMA-M-05",
+          "document_type": "Digital Signature Certificate Declaration",
+          "required_for_tender": true,
+          "submitted": true,
+          "file_name": "gamma_dsc_declaration.pdf",
+          "mime_type": "application/pdf",
+          "verification_status": "verified",
+          "extracted_fields": {
+            "signatory_name": "Dev Malhotra",
+            "certificate_class": "Class 3",
+            "certificate_status": "Valid",
+            "valid_until": "2027-08-31"
+          },
+          "detected_issues": []
+        },
+        {
+          "document_id": "GAMMA-M-06",
+          "document_type": "Bank Solvency Certificate",
+          "required_for_tender": true,
+          "submitted": true,
+          "file_name": "gamma_bank_solvency.pdf",
+          "mime_type": "application/pdf",
+          "verification_status": "warning",
+          "extracted_fields": {
+            "bank_name": "Punjab National Bank",
+            "solvency_amount_inr": 40000000,
+            "issued_to": "Gamma Heavy Engineering Private Limited",
+            "reference": "MOCK-BG-GAMMA-3003",
+            "valid_until": "2027-06-30"
+          },
+          "detected_issues": [
+            "Cross-document entity mismatch: Solvency certificate is issued to affiliate 'Gamma Heavy Engineering Private Limited' instead of registered bidder 'Gamma Infrastructure Projects Private Limited'"
+          ]
+        },
+        {
+          "document_id": "GAMMA-M-07",
+          "document_type": "Power of Attorney",
+          "required_for_tender": false,
+          "submitted": true,
+          "file_name": "gamma_power_of_attorney.pdf",
+          "mime_type": "application/pdf",
+          "verification_status": "verified",
+          "extracted_fields": {
+            "principal": "Gamma Infrastructure Projects Private Limited",
+            "authorized_person": "Dev Malhotra",
+            "execution_date": "2026-08-25"
+          },
+          "detected_issues": []
+        }
+      ],
+      "financial_documents": [
+        {
+          "document_id": "GAMMA-F-01",
+          "document_type": "Audited Financial Statements",
+          "required_for_tender": true,
+          "submitted": true,
+          "file_name": "gamma_audited_financials_2023_2026.pdf",
+          "mime_type": "application/pdf",
+          "verification_status": "verified",
+          "extracted_fields": {
+            "financial_years": [
+              "2023-24",
+              "2024-25",
+              "2025-26"
+            ],
+            "average_annual_turnover_inr": 92000000,
+            "net_worth_inr": 18500000,
+            "auditor_name": "Mock Audit Partners",
+            "audit_opinion": "Unqualified"
+          },
+          "detected_issues": []
+        },
+        {
+          "document_id": "GAMMA-F-02",
+          "document_type": "Income Tax Return Acknowledgements",
+          "required_for_tender": true,
+          "submitted": true,
+          "file_name": "gamma_itr_acknowledgements.pdf",
+          "mime_type": "application/pdf",
+          "verification_status": "warning",
+          "extracted_fields": {
+            "assessment_years": [
+              "2024-25",
+              "2025-26"
+            ],
+            "pan": "AACCG3003C",
+            "filing_status": "Missing most recent year"
+          },
+          "detected_issues": [
+            "Most recent ITR acknowledgement is missing"
+          ]
+        },
+        {
+          "document_id": "GAMMA-F-03",
+          "document_type": "CA Turnover Certificate",
+          "required_for_tender": true,
+          "submitted": true,
+          "file_name": "gamma_turnover_certificate.pdf",
+          "mime_type": "application/pdf",
+          "verification_status": "verified",
+          "extracted_fields": {
+            "average_turnover_inr": 92000000,
+            "period": "2023-24 to 2025-26",
+            "ca_name": "Mock Audit Partners",
+            "udin": "MOCK-UDIN-GAMMA-003"
+          },
+          "detected_issues": []
+        },
+        {
+          "document_id": "GAMMA-F-04",
+          "document_type": "Bank Solvency Certificate",
+          "required_for_tender": true,
+          "submitted": true,
+          "file_name": "gamma_solvency_certificate.pdf",
+          "mime_type": "application/pdf",
+          "verification_status": "warning",
+          "extracted_fields": {
+            "bank_name": "Demo Industrial Bank",
+            "solvency_amount_inr": 4000000,
+            "certificate_date": "2025-12-10",
+            "valid_until": "2026-06-09"
+          },
+          "detected_issues": [
+            "Solvency certificate has expired"
+          ]
+        },
+        {
+          "document_id": "GAMMA-F-05",
+          "document_type": "Cancelled Cheque / Bank Details",
+          "required_for_tender": true,
+          "submitted": true,
+          "file_name": "gamma_cancelled_cheque.pdf",
+          "mime_type": "application/pdf",
+          "verification_status": "verified",
+          "extracted_fields": {
+            "account_holder": "Gamma Infrastructure Projects Private Limited",
+            "bank_name": "Demo Industrial Bank",
+            "ifsc": "DMIB0003003",
+            "account_last_4": "3003"
+          },
+          "detected_issues": []
+        }
+      ],
+      "technical_documents": [
+        {
+          "document_id": "GAMMA-T-01",
+          "document_type": "Experience Certificates / Work Orders",
+          "required_for_tender": true,
+          "submitted": true,
+          "file_name": "gamma_experience_certificates.pdf",
+          "mime_type": "application/pdf",
+          "verification_status": "verified",
+          "extracted_fields": {
+            "similar_projects_count": 5,
+            "largest_completed_order_inr": 125000000,
+            "completion_status": "Completed",
+            "period": "2021-2025"
+          },
+          "detected_issues": []
+        },
+        {
+          "document_id": "GAMMA-T-02",
+          "document_type": "Technical Compliance Statement",
+          "required_for_tender": true,
+          "submitted": true,
+          "file_name": "gamma_technical_compliance_statement.pdf",
+          "mime_type": "application/pdf",
+          "verification_status": "warning",
+          "extracted_fields": {
+            "specifications_total": 25,
+            "specifications_compliant": 22,
+            "deviations": 3,
+            "signed_by": "Dev Malhotra"
+          },
+          "detected_issues": [
+            "Three technical deviations declared"
+          ]
+        },
+        {
+          "document_id": "GAMMA-T-03",
+          "document_type": "Technical Methodology and Work Plan",
+          "required_for_tender": true,
+          "submitted": true,
+          "file_name": "gamma_methodology.pdf",
+          "mime_type": "application/pdf",
+          "verification_status": "verified",
+          "extracted_fields": {
+            "project_duration_months": 12,
+            "key_personnel_count": 8,
+            "methodology_submitted": true
+          },
+          "detected_issues": []
+        },
+        {
+          "document_id": "GAMMA-T-04",
+          "document_type": "Quality Certification",
+          "required_for_tender": false,
+          "submitted": true,
+          "file_name": "gamma_iso_9001.pdf",
+          "mime_type": "application/pdf",
+          "verification_status": "warning",
+          "extracted_fields": {
+            "certificate_type": "ISO 9001:2015",
+            "certificate_number": "ISO-DEMO-GAMMA-3003",
+            "valid_until": "2026-05-31",
+            "issuing_body": "Demo Certification Services"
+          },
+          "detected_issues": [
+            "Quality certificate has expired"
+          ]
+        },
+        {
+          "document_id": "GAMMA-T-05",
+          "document_type": "OEM Authorization Letter",
+          "required_for_tender": false,
+          "submitted": false,
+          "file_name": null,
+          "mime_type": null,
+          "verification_status": "not_applicable",
+          "extracted_fields": {},
+          "detected_issues": []
+        },
+        {
+          "document_id": "GAMMA-T-06",
+          "document_type": "Make in India / Local Content Declaration",
+          "required_for_tender": true,
+          "submitted": true,
+          "file_name": "gamma_make_in_india_declaration.pdf",
+          "mime_type": "application/pdf",
+          "verification_status": "warning",
+          "extracted_fields": {
+            "local_content_percent": 18,
+            "classification": "Non-local supplier",
+            "signed_by": "Dev Malhotra"
+          },
+          "detected_issues": [
+            "Local content below tender preference threshold"
+          ]
+        }
+      ],
+      "legal_documents": [
+        {
+          "document_id": "GAMMA-L-01",
+          "document_type": "Covering Letter",
+          "required_for_tender": true,
+          "submitted": true,
+          "file_name": "gamma_covering_letter.pdf",
+          "mime_type": "application/pdf",
+          "verification_status": "verified",
+          "extracted_fields": {
+            "tender_id": "GEM-DEMO-CON-2001",
+            "signed_by": "Dev Malhotra"
+          },
+          "detected_issues": []
+        },
+        {
+          "document_id": "GAMMA-L-02",
+          "document_type": "Non-Blacklisting Declaration",
+          "required_for_tender": true,
+          "submitted": true,
+          "file_name": "gamma_non_blacklisting_declaration.pdf",
+          "mime_type": "application/pdf",
+          "verification_status": "failed",
+          "extracted_fields": {
+            "declaration": "Not blacklisted or debarred",
+            "signed_by": "Dev Malhotra"
+          },
+          "detected_issues": [
+            "Declaration conflicts with mock debarment registry result"
+          ]
+        },
+        {
+          "document_id": "GAMMA-L-03",
+          "document_type": "Non-Collusion Declaration",
+          "required_for_tender": true,
+          "submitted": true,
+          "file_name": "gamma_non_collusion_declaration.pdf",
+          "mime_type": "application/pdf",
+          "verification_status": "verified",
+          "extracted_fields": {
+            "declaration": "Bid prepared independently",
+            "signed_by": "Dev Malhotra"
+          },
+          "detected_issues": []
+        },
+        {
+          "document_id": "GAMMA-L-04",
+          "document_type": "MSME Status Declaration",
+          "required_for_tender": false,
+          "submitted": false,
+          "file_name": null,
+          "mime_type": null,
+          "verification_status": "not_applicable",
+          "extracted_fields": {},
+          "detected_issues": []
+        },
+        {
+          "document_id": "GAMMA-L-05",
+          "document_type": "Integrity Pact",
+          "required_for_tender": true,
+          "submitted": false,
+          "file_name": null,
+          "mime_type": null,
+          "verification_status": "missing",
+          "extracted_fields": {},
+          "detected_issues": [
+            "Integrity Pact is required for this tender value but was not submitted"
+          ]
+        }
+      ]
+    },
+    {
+      "bidder_id": "delta-meddevices",
+      "bidder_profile": {
+        "legal_name": "Delta MedDevices Private Limited",
+        "bidder_type": "Private Limited Company",
+        "cin": "U32509TN2024PTC420004",
+        "pan": "AACCD4004D",
+        "gstin": "33AACCD4004D1Z3",
+        "registered_address": "Demo HealthTech Campus 22, Chennai, Tamil Nadu 600001",
+        "authorized_signatory": "Ishita Iyer",
+        "signatory_designation": "Director"
+      },
+      "tender_context": {
+        "tender_id": "GEM-DEMO-MED-3001",
+        "tender_title": "Supply of Patient Monitoring Devices",
+        "tender_value_inr": 18000000,
+        "category": "Medical Devices",
+        "requires_msme_proof": false,
+        "requires_oem_authorization": true,
+        "requires_make_in_india_declaration": true,
+        "requires_integrity_pact": true
+      },
+      "mandatory_documents": [
+        {
+          "document_id": "DELTA-M-01",
+          "document_type": "PAN Card",
+          "required_for_tender": true,
+          "submitted": true,
+          "file_name": "delta_pan_card.pdf",
+          "mime_type": "application/pdf",
+          "verification_status": "verified",
+          "extracted_fields": {
+            "pan": "AACCD4004D",
+            "holder_name": "DELTA MEDDEVICES PRIVATE LIMITED",
+            "entity_type": "Company"
+          },
+          "detected_issues": []
+        },
+        {
+          "document_id": "DELTA-M-02",
+          "document_type": "GST Registration Certificate",
+          "required_for_tender": true,
+          "submitted": true,
+          "file_name": "delta_gst_certificate.pdf",
+          "mime_type": "application/pdf",
+          "verification_status": "verified",
+          "extracted_fields": {
+            "gstin": "33AACCD4004D1Z3",
+            "legal_name": "DELTA MEDDEVICES PRIVATE LIMITED",
+            "registration_status": "Active",
+            "state": "Tamil Nadu",
+            "last_return_filing_period": "2026-07"
+          },
+          "detected_issues": []
+        },
+        {
+          "document_id": "DELTA-M-03",
+          "document_type": "Certificate of Incorporation",
+          "required_for_tender": true,
+          "submitted": true,
+          "file_name": "delta_certificate_of_incorporation.pdf",
+          "mime_type": "application/pdf",
+          "verification_status": "verified",
+          "extracted_fields": {
+            "cin": "U32509TN2024PTC420004",
+            "company_name": "Delta MedDevices Private Limited",
+            "incorporation_date": "2024-02-20",
+            "roc": "Chennai"
+          },
+          "detected_issues": []
+        },
+        {
+          "document_id": "DELTA-M-04",
+          "document_type": "Udyam/MSME Registration Certificate",
+          "required_for_tender": false,
+          "submitted": true,
+          "file_name": "delta_udyam_certificate.pdf",
+          "mime_type": "application/pdf",
+          "verification_status": "verified",
+          "extracted_fields": {
+            "udyam_number": "UDYAM-TN-00-0004004",
+            "enterprise_category": "Micro",
+            "enterprise_name": "Delta MedDevices Private Limited",
+            "activity_type": "Manufacturing",
+            "status": "Active"
+          },
+          "detected_issues": []
+        },
+        {
+          "document_id": "DELTA-M-05",
+          "document_type": "Digital Signature Certificate Declaration",
+          "required_for_tender": true,
+          "submitted": true,
+          "file_name": "delta_dsc_declaration.pdf",
+          "mime_type": "application/pdf",
+          "verification_status": "verified",
+          "extracted_fields": {
+            "signatory_name": "Ishita Iyer",
+            "certificate_class": "Class 3",
+            "certificate_status": "Valid",
+            "valid_until": "2027-08-15"
+          },
+          "detected_issues": []
+        },
+        {
+          "document_id": "DELTA-M-06",
+          "document_type": "Bid Security Declaration",
+          "required_for_tender": true,
+          "submitted": true,
+          "file_name": "delta_bid_security_declaration.pdf",
+          "mime_type": "application/pdf",
+          "verification_status": "verified",
+          "extracted_fields": {
+            "declaration_type": "Bid Security Declaration",
+            "emd_exemption_claimed": true,
+            "basis": "Valid MSME/Udyam registration",
+            "signed_by": "Ishita Iyer"
+          },
+          "detected_issues": []
+        },
+        {
+          "document_id": "DELTA-M-07",
+          "document_type": "Power of Attorney",
+          "required_for_tender": false,
+          "submitted": false,
+          "file_name": null,
+          "mime_type": null,
+          "verification_status": "not_applicable",
+          "extracted_fields": {},
+          "detected_issues": []
+        }
+      ],
+      "financial_documents": [
+        {
+          "document_id": "DELTA-F-01",
+          "document_type": "Audited Financial Statements",
+          "required_for_tender": true,
+          "submitted": true,
+          "file_name": "delta_audited_financials_2024_2026.pdf",
+          "mime_type": "application/pdf",
+          "verification_status": "warning",
+          "extracted_fields": {
+            "financial_years": [
+              "2024-25",
+              "2025-26"
+            ],
+            "average_annual_turnover_inr": 3500000,
+            "net_worth_inr": 3800000,
+            "auditor_name": "Demo Health Audit LLP",
+            "audit_opinion": "Unmodified"
+          },
+          "detected_issues": [
+            "Audited turnover ₹35.00 Lakhs fails mandatory tender requirement of ₹54.00 Lakhs for GEM-DEMO-MED-3001"
+          ]
+        },
+        {
+          "document_id": "DELTA-F-02",
+          "document_type": "Income Tax Return Acknowledgements",
+          "required_for_tender": true,
+          "submitted": true,
+          "file_name": "delta_itr_acknowledgements.pdf",
+          "mime_type": "application/pdf",
+          "verification_status": "warning",
+          "extracted_fields": {
+            "assessment_years": [
+              "2025-26",
+              "2026-27"
+            ],
+            "pan": "AACCD4004D",
+            "filing_status": "Filed"
+          },
+          "detected_issues": [
+            "New company; only two assessment years available"
+          ]
+        },
+        {
+          "document_id": "DELTA-F-03",
+          "document_type": "CA Turnover Certificate",
+          "required_for_tender": true,
+          "submitted": true,
+          "file_name": "delta_turnover_certificate.pdf",
+          "mime_type": "application/pdf",
+          "verification_status": "verified",
+          "extracted_fields": {
+            "average_turnover_inr": 3500000,
+            "period": "2024-25 to 2025-26",
+            "ca_name": "Demo Health Audit LLP",
+            "udin": "MOCK-UDIN-DELTA-004"
+          },
+          "detected_issues": [
+            "Verified on ICAI UDIN portal, but certified turnover of ₹35.00 Lakhs fails the mandatory tender threshold of ₹54.00 Lakhs"
+          ]
+        },
+        {
+          "document_id": "DELTA-F-04",
+          "document_type": "Bank Solvency Certificate",
+          "required_for_tender": false,
+          "submitted": true,
+          "file_name": "delta_solvency_certificate.pdf",
+          "mime_type": "application/pdf",
+          "verification_status": "verified",
+          "extracted_fields": {
+            "bank_name": "Demo Health Bank",
+            "solvency_amount_inr": 9000000,
+            "certificate_date": "2026-08-30",
+            "valid_until": "2027-02-28"
+          },
+          "detected_issues": []
+        },
+        {
+          "document_id": "DELTA-F-05",
+          "document_type": "Cancelled Cheque / Bank Details",
+          "required_for_tender": true,
+          "submitted": true,
+          "file_name": "delta_cancelled_cheque.pdf",
+          "mime_type": "application/pdf",
+          "verification_status": "verified",
+          "extracted_fields": {
+            "account_holder": "Delta MedDevices Private Limited",
+            "bank_name": "Demo Health Bank",
+            "ifsc": "DMHB0004004",
+            "account_last_4": "4004"
+          },
+          "detected_issues": []
+        }
+      ],
+      "technical_documents": [
+        {
+          "document_id": "DELTA-T-01",
+          "document_type": "Experience Certificates / Work Orders",
+          "required_for_tender": true,
+          "submitted": true,
+          "file_name": "delta_experience_certificates.pdf",
+          "mime_type": "application/pdf",
+          "verification_status": "warning",
+          "extracted_fields": {
+            "similar_projects_count": 2,
+            "largest_completed_order_inr": 3500000,
+            "completion_status": "Completed",
+            "period": "2025-2026"
+          },
+          "detected_issues": [
+            "Experience may qualify only if startup relaxation applies"
+          ]
+        },
+        {
+          "document_id": "DELTA-T-02",
+          "document_type": "Technical Compliance Statement",
+          "required_for_tender": true,
+          "submitted": true,
+          "file_name": "delta_technical_compliance_statement.pdf",
+          "mime_type": "application/pdf",
+          "verification_status": "verified",
+          "extracted_fields": {
+            "specifications_total": 22,
+            "specifications_compliant": 22,
+            "deviations": 0,
+            "signed_by": "Ishita Iyer"
+          },
+          "detected_issues": []
+        },
+        {
+          "document_id": "DELTA-T-03",
+          "document_type": "Product Datasheet",
+          "required_for_tender": true,
+          "submitted": true,
+          "file_name": "delta_product_datasheet.pdf",
+          "mime_type": "application/pdf",
+          "verification_status": "verified",
+          "extracted_fields": {
+            "product": "Patient Monitoring Device",
+            "model": "DMD-PM100",
+            "warranty_years": 3,
+            "country_of_origin": "India"
+          },
+          "detected_issues": []
+        },
+        {
+          "document_id": "DELTA-T-04",
+          "document_type": "BIS/Product Compliance Certificate",
+          "required_for_tender": true,
+          "submitted": true,
+          "file_name": "delta_bis_certificate.pdf",
+          "mime_type": "application/pdf",
+          "verification_status": "warning",
+          "extracted_fields": {
+            "certificate_type": "Mock BIS Product Certificate",
+            "certificate_number": "BIS-DEMO-DELTA-4004",
+            "product_model": "DMD-PM100",
+            "valid_until": "2026-12-31",
+            "issuing_body": "Mock BIS Registry"
+          },
+          "detected_issues": [
+            "Certificate requires final registry validation"
+          ]
+        },
+        {
+          "document_id": "DELTA-T-05",
+          "document_type": "OEM Authorization Letter",
+          "required_for_tender": true,
+          "submitted": true,
+          "file_name": "delta_oem_authorization.pdf",
+          "mime_type": "application/pdf",
+          "verification_status": "warning",
+          "extracted_fields": {
+            "oem_name": "Delta MedDevices Private Limited",
+            "authorized_bidder": "Delta MedDevices Private Limited",
+            "product_model": "DMD-PM100",
+            "valid_until": "2026-09-12"
+          },
+          "detected_issues": [
+            "OEM authorization validity is near expiry"
+          ]
+        },
+        {
+          "document_id": "DELTA-T-06",
+          "document_type": "Make in India / Local Content Declaration",
+          "required_for_tender": true,
+          "submitted": true,
+          "file_name": "delta_make_in_india_declaration.pdf",
+          "mime_type": "application/pdf",
+          "verification_status": "verified",
+          "extracted_fields": {
+            "local_content_percent": 68,
+            "classification": "Class I Local Supplier",
+            "signed_by": "Ishita Iyer"
+          },
+          "detected_issues": []
+        }
+      ],
+      "legal_documents": [
+        {
+          "document_id": "DELTA-L-01",
+          "document_type": "Covering Letter",
+          "required_for_tender": true,
+          "submitted": true,
+          "file_name": "delta_covering_letter.pdf",
+          "mime_type": "application/pdf",
+          "verification_status": "verified",
+          "extracted_fields": {
+            "tender_id": "GEM-DEMO-MED-3001",
+            "signed_by": "Ishita Iyer"
+          },
+          "detected_issues": []
+        },
+        {
+          "document_id": "DELTA-L-02",
+          "document_type": "Non-Blacklisting Declaration",
+          "required_for_tender": true,
+          "submitted": true,
+          "file_name": "delta_non_blacklisting_declaration.pdf",
+          "mime_type": "application/pdf",
+          "verification_status": "verified",
+          "extracted_fields": {
+            "declaration": "Not blacklisted or debarred",
+            "signed_by": "Ishita Iyer"
+          },
+          "detected_issues": []
+        },
+        {
+          "document_id": "DELTA-L-03",
+          "document_type": "Non-Collusion Declaration",
+          "required_for_tender": true,
+          "submitted": true,
+          "file_name": "delta_non_collusion_declaration.pdf",
+          "mime_type": "application/pdf",
+          "verification_status": "verified",
+          "extracted_fields": {
+            "declaration": "Bid prepared independently",
+            "signed_by": "Ishita Iyer"
+          },
+          "detected_issues": []
+        },
+        {
+          "document_id": "DELTA-L-04",
+          "document_type": "MSME Status Declaration",
+          "required_for_tender": false,
+          "submitted": true,
+          "file_name": "delta_msme_declaration.pdf",
+          "mime_type": "application/pdf",
+          "verification_status": "verified",
+          "extracted_fields": {
+            "udyam_number": "UDYAM-TN-00-0004004",
+            "enterprise_category": "Micro",
+            "emd_exemption_claimed": true
+          },
+          "detected_issues": []
+        },
+        {
+          "document_id": "DELTA-L-05",
+          "document_type": "Integrity Pact",
+          "required_for_tender": true,
+          "submitted": true,
+          "file_name": "delta_integrity_pact.pdf",
+          "mime_type": "application/pdf",
+          "verification_status": "verified",
+          "extracted_fields": {
+            "tender_id": "GEM-DEMO-MED-3001",
+            "signed_by": "Ishita Iyer",
+            "signed_date": "2026-09-06"
+          },
+          "detected_issues": []
+        }
+      ]
+    }
+  ]
+}

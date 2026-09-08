@@ -6,6 +6,7 @@ import {
   RiskLevel 
 } from '../types';
 import { BidderInspectionModal } from './BidderInspectionModal';
+import { StatutoryApiDataExplorer } from './StatutoryApiDataExplorer';
 import { 
   ShieldCheck, 
   Search, 
@@ -18,7 +19,11 @@ import {
   Eye, 
   Download, 
   Building2, 
-  TrendingUp
+  TrendingUp,
+  Database,
+  Cpu,
+  Lock,
+  Sparkles
 } from 'lucide-react';
 
 interface OfficerDashboardProps {
@@ -38,6 +43,7 @@ export const OfficerDashboard: React.FC<OfficerDashboardProps> = ({
   onRecordOfficerDecision,
   language,
 }) => {
+  const [officerTab, setOfficerTab] = useState<'SUBMISSIONS' | 'API_REGISTRY' | 'SARVAM_AI'>('SUBMISSIONS');
   const [selectedTenderFilter, setSelectedTenderFilter] = useState<string>('ALL');
   const [riskFilter, setRiskFilter] = useState<string>('ALL');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
@@ -68,6 +74,91 @@ export const OfficerDashboard: React.FC<OfficerDashboardProps> = ({
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+      {/* Officer Navigation & Quick Sub-bar */}
+      <div className="bg-white p-3 rounded-2xl border border-slate-200 shadow-xs flex flex-col md:flex-row items-center justify-between gap-3">
+        {/* Left: Officer Role Pill */}
+        <div className="flex items-center space-x-2.5">
+          <div className="w-8 h-8 rounded-lg bg-[#002B5B] text-white flex items-center justify-center font-bold text-xs shadow-xs">
+            <Lock className="w-4 h-4 text-amber-400" />
+          </div>
+          <div>
+            <div className="flex items-center space-x-2">
+              <span className="text-xs font-bold text-slate-900">
+                Procurement Officer Evaluation Console
+              </span>
+              <span className="text-[9px] font-mono px-1.5 py-0.5 bg-amber-100 text-amber-900 border border-amber-300 rounded font-bold uppercase">
+                Officer Confidential
+              </span>
+            </div>
+            <p className="text-[10px] text-slate-500">
+              Statutory verification under GFR 2017 & GeM Transparency Norms
+            </p>
+          </div>
+        </div>
+
+        {/* Right: Section Tabs */}
+        <div className="flex items-center space-x-1.5 bg-slate-100 p-1 rounded-xl w-full md:w-auto justify-center">
+          <button
+            id="officer-tab-submissions"
+            onClick={() => setOfficerTab('SUBMISSIONS')}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 ${
+              officerTab === 'SUBMISSIONS'
+                ? 'bg-[#002B5B] text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+            }`}
+          >
+            <FileText className="w-3.5 h-3.5" />
+            <span>Bidder Submissions & Bids</span>
+            <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-black ${
+              officerTab === 'SUBMISSIONS' ? 'bg-blue-800 text-amber-300' : 'bg-slate-200 text-slate-700'
+            }`}>
+              {submissions.length}
+            </span>
+          </button>
+
+          <button
+            id="officer-tab-api-data"
+            onClick={() => setOfficerTab('API_REGISTRY')}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 ${
+              officerTab === 'API_REGISTRY'
+                ? 'bg-[#002B5B] text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+            }`}
+          >
+            <Database className="w-3.5 h-3.5 text-[#F27D26]" />
+            <span>Statutory API Data Registry</span>
+            <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-amber-100 text-amber-900 font-bold">
+              14 Gateways
+            </span>
+          </button>
+
+          <button
+            id="officer-tab-sarvam-ai"
+            onClick={() => setOfficerTab('SARVAM_AI')}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 ${
+              officerTab === 'SARVAM_AI'
+                ? 'bg-[#002B5B] text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+            }`}
+          >
+            <Cpu className="w-3.5 h-3.5 text-emerald-600" />
+            <span>Sarvam AI Status</span>
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          </button>
+        </div>
+      </div>
+
+      {/* Conditionally Render Statutory API Explorer or Standard Officer Dashboard */}
+      {officerTab === 'API_REGISTRY' && (
+        <StatutoryApiDataExplorer initialSubTab="GATEWAYS" language={language} />
+      )}
+
+      {officerTab === 'SARVAM_AI' && (
+        <StatutoryApiDataExplorer initialSubTab="SARVAM_AI" language={language} />
+      )}
+
+      {officerTab === 'SUBMISSIONS' && (
+        <>
       {/* System Status & Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Metric 1: Total Bids */}
@@ -356,6 +447,8 @@ export const OfficerDashboard: React.FC<OfficerDashboardProps> = ({
           </table>
         </div>
       </div>
+      </>
+      )}
 
       {/* Deep-Dive Inspection Modal */}
       {inspectingSubmission && (

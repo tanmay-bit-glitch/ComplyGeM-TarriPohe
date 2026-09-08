@@ -12,10 +12,38 @@ export type DocumentType =
   | 'DIGILOCKER_CERT'
   | 'DEBARMENT_AFFIDAVIT'
   | 'FINANCIAL_STATEMENT'
+  | 'MCA_COI'
+  | 'DSC_DECLARATION'
+  | 'BID_SECURITY_DECLARATION'
+  | 'CA_TURNOVER_CERT'
+  | 'BANK_SOLVENCY'
+  | 'BANK_DETAILS'
+  | 'EXPERIENCE_CERT'
+  | 'TECH_COMPLIANCE'
+  | 'PRODUCT_DATASHEET'
+  | 'QUALITY_CERT_ISO'
+  | 'BIS_CERT'
+  | 'NON_COLLUSION'
+  | 'MSME_DECLARATION'
+  | 'INTEGRITY_PACT'
+  | 'TECH_METHODOLOGY'
+  | 'EMD_PROOF'
+  | 'POWER_OF_ATTORNEY'
+  | 'COVERING_LETTER'
   | 'OTHER_STATUTORY';
 
 export type RiskLevel = 'LOW' | 'MEDIUM' | 'HIGH';
-export type VerificationStatus = 'PENDING' | 'AI_VERIFYING' | 'VERIFIED' | 'DISCREPANCY_FLAGGED' | 'REJECTED';
+export type VerificationStatus =
+  | 'PENDING'
+  | 'AI_VERIFYING'
+  | 'VERIFIED'
+  | 'DISCREPANCY_FLAGGED'
+  | 'REJECTED'
+  | 'NOT_VERIFIED'
+  | 'NOT_AVAILABLE'
+  | 'INVALID_NO'
+  | 'SUSPENDED'
+  | 'DEBARRED';
 export type BidderDecision = 'PENDING_REVIEW' | 'QUALIFIED' | 'DISQUALIFIED' | 'CLARIFICATION_REQUESTED';
 
 export type UserRole = 'PROCUREMENT_OFFICER' | 'BIDDER';
@@ -140,7 +168,7 @@ export interface DepartmentApiResult {
   queryEndpoint: string;
   queriedIdentifier: string;
   queryTimestamp: string;
-  status: 'MATCHED' | 'MISMATCH' | 'NOT_FOUND' | 'DEBARRED' | 'SUSPENDED';
+  status: 'MATCHED' | 'MISMATCH' | 'NOT_FOUND' | 'DEBARRED' | 'SUSPENDED' | 'NOT_AVAILABLE' | 'NOT_VERIFIED' | 'INVALID_NO';
   verifiedAttributes: Record<string, string | number | boolean>;
   extractedTextSent?: string; // Important text extracted by Sarvam sent to the department API
   databaseRecord?: Record<string, any>; // Master database record retrieved from department
@@ -165,12 +193,31 @@ export interface ComplianceScorecard {
   totalScore: number; // Out of 100
   maxPossibleScore: number;
   riskLevel: RiskLevel;
+  complianceVerdict?: 'COMPLIANT' | 'NEEDS REVIEW' | 'NON-COMPLIANT';
   items: RuleEvaluationItem[];
   missingMandatoryDocuments: string[];
   criticalFailures: string[];
   aiRecommendation: string;
   aiOfficerSummary: string;
   evaluatedAt: string;
+}
+
+export interface Step1CrossCheckResult {
+  step1DeclaredName: string;
+  verifiedName: string;
+  isNameMatch: boolean;
+  step1DeclaredId?: string;
+  verifiedId?: string;
+  isIdMatch?: boolean;
+  step1DeclaredState?: string;
+  verifiedState?: string;
+  isStateMatch?: boolean;
+  step1DeclaredMiiPercent?: number;
+  verifiedMiiPercent?: number;
+  isMiiMatch?: boolean;
+  overallConsistency: 'CONSISTENT' | 'MISMATCH_DETECTED';
+  status: 'CONSISTENT' | 'MISMATCH_DETECTED';
+  mismatchDetails: string[];
 }
 
 export interface SubmittedDocument {
@@ -185,6 +232,7 @@ export interface SubmittedDocument {
   extractedData?: ExtractedDocData;
   departmentResult?: DepartmentApiResult;
   verificationStatus: VerificationStatus;
+  step1CrossCheck?: Step1CrossCheckResult;
 }
 
 export interface BidderSubmission {

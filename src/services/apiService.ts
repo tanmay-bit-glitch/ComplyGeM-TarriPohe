@@ -115,27 +115,86 @@ export async function extractDocumentWithAI(
       } else {
         decoded = decodeURIComponent(fileDataUrl);
       }
-      const numMatch = decoded.match(/(?:UDYAM REGISTRATION NUMBER|REGISTRATION NUMBER \(GSTIN\)|PERMANENT ACCOUNT NUMBER|DECLARATION REFERENCE|OEM AUTHORIZATION ID|AFFIDAVIT NUMBER|ESTABLISHMENT CODE|IDENTIFIER|REGISTRATION NO)\s*:\s*([A-Za-z0-9\-\/]+)/i);
+      const numMatch = decoded.match(/(?:UDYAM REGISTRATION NUMBER|REGISTRATION NUMBER \(GSTIN\)|PERMANENT ACCOUNT NUMBER|CORPORATE IDENTIFICATION NUMBER \(CIN\)|CORPORATE IDENTIFICATION NUMBER|UNIQUE DOCUMENT IDENTIFICATION NUMBER \(UDIN\)|UNIQUE DOCUMENT IDENTIFICATION NUMBER|DSC IDENTIFIER|IFSC CODE|BIS REGISTRATION NUMBER|DECLARATION REFERENCE|OEM AUTHORIZATION ID|AFFIDAVIT NUMBER|ESTABLISHMENT CODE|CERTIFICATE REFERENCE|PACT REFERENCE NUMBER|PACT REFERENCE|IDENTIFIER|REGISTRATION NO)\s*:\s*([A-Za-z0-9\-\/ ]+)/i);
       if (numMatch && numMatch[1]) svgExtractedDocNumber = numMatch[1].trim();
-      const nameMatch = decoded.match(/(?:NAME OF ENTERPRISE|LEGAL NAME|NAME|BIDDER|AUTHORIZED PARTNER|DEPONENT|ESTABLISHMENT NAME|LEGAL ENTITY)\s*:\s*([^<\n]+)/i);
-      if (nameMatch && nameMatch[1]) svgExtractedEntityName = nameMatch[1].trim();
+      
+      // Filter out bank names or OEM principal labels to avoid overwriting bidder legal entity name
+      const textLines = decoded.split(/\r?\n|<text[^>]*>/);
+      for (const line of textLines) {
+        if (!line.toUpperCase().includes('BANK NAME:') && !line.toUpperCase().includes('PRINCIPAL OEM:') && !line.toUpperCase().includes('ISSUING BANK:')) {
+          const nameMatch = line.match(/(?:NAME OF ENTERPRISE|LEGAL NAME|ORGANIZATION \/ BIDDER|BIDDER ENTITY|CLIENT ENTITY|ACCOUNT HOLDER|CUSTOMER ENTITY|DEPONENT|AUTHORIZED PARTNER|ESTABLISHMENT NAME|LEGAL ENTITY|MANUFACTURER \/ BIDDER|\bBIDDER\b)\s*:\s*([^<\n]+)/i);
+          if (nameMatch && nameMatch[1]) {
+            svgExtractedEntityName = nameMatch[1].trim();
+            break;
+          }
+        }
+      }
     } catch {
       // Ignored
     }
   }
 
   let detectedType: DocumentType = 'OTHER_STATUTORY';
+  if (typeUpper.includes('UDYAM') || typeUpper.includes('MSME')) detectedType = 'UDYAM';
+  else if (typeUpper.includes('GST') || typeUpper.includes('GSTIN')) detectedType = 'GSTIN';
+  else if (typeUpper.includes('PAN') || typeUpper.includes('ITR')) detectedType = 'PAN';
+  else if (typeUpper.includes('MCA_COI') || typeUpper.includes('INCORPORATION') || typeUpper.includes('CIN')) detectedType = 'MCA_COI';
+  else if (typeUpper.includes('DSC')) detectedType = 'DSC_DECLARATION';
+  else if (typeUpper.includes('TURNOVER') || typeUpper.includes('UDIN')) detectedType = 'CA_TURNOVER_CERT';
+  else if (typeUpper.includes('BANK_DETAILS') || typeUpper.includes('CHEQUE') || typeUpper.includes('PFMS')) detectedType = 'BANK_DETAILS';
+  else if (typeUpper.includes('BANK_SOLVENCY') || typeUpper.includes('SOLVENCY')) detectedType = 'BANK_SOLVENCY';
+  else if (typeUpper.includes('BIS')) detectedType = 'BIS_CERT';
+  else if (typeUpper.includes('ISO') || typeUpper.includes('QUALITY')) detectedType = 'QUALITY_CERT_ISO';
+  else if (typeUpper.includes('INDIA') || typeUpper.includes('MII') || typeUpper.includes('LOCAL')) detectedType = 'MAKE_IN_INDIA';
+  else if (typeUpper.includes('OEM') || typeUpper.includes('MAF')) detectedType = 'OEM_AUTH';
+  else if (typeUpper.includes('EPFO') || typeUpper.includes('ESIC')) detectedType = 'EPFO';
+  else if (typeUpper.includes('DEBAR') || typeUpper.includes('AFFIDAVIT')) detectedType = 'DEBARMENT_AFFIDAVIT';
+  else if (typeUpper.includes('EMD')) detectedType = 'EMD_PROOF';
+  else if (typeUpper.includes('EXPERIENCE')) detectedType = 'EXPERIENCE_CERT';
+  else if (typeUpper.includes('INTEGRITY')) detectedType = 'INTEGRITY_PACT';
+  else if (documentType && documentType !== 'OTHER_STATUTORY') detectedType = documentType as DocumentType;
+
+  // If no document number was extracted from the document content, reject as non-statutory
+  if (!svgExtractedDocNumber) {
+    return {
+      isValidDocument: false,
+      isExpectedDocumentType: false,
+      verificationStatus: 'REJECTED',
+      documentType: detectedType,
+      documentNumber: 'NO_STATUTORY_ID',
+      entityName: 'Unverified Upload',
+      issueDate: '',
+      validityDate: '',
+      isPerpetual: false,
+      signatoryName: '',
+      signatureDetected: false,
+      signatureConfidence: 0,
+      sealDetected: false,
+      sealConfidence: 0,
+      rawExtractedText: 'Forensic Scan: No statutory registration ID detected in this uploaded document.',
+      aiAuthenticityScore: 0,
+      aiObservations: [
+        'Client forensic scan: No valid statutory registration credentials detected.',
+        'Official Government of India Ashok Stambh emblem or ministry header not recognized.',
+      ],
+      flags: ['NOT_A_STATUTORY_DOCUMENT', 'NO_STATUTORY_ID_FOUND'],
+      rejectionReason: `Sarvam Indic AI Forensic Scan: The uploaded document does not contain an official statutory registration number matching ${detectedType} requirements.`,
+      detectedTypeDescription: 'Unverified / Non-Statutory Upload',
+      aiEngine: 'SARVAM_AI',
+      aiEngineModel: 'Sarvam Indic Sovereign OCR Engine',
+      indicScriptDetected: 'None',
+    };
+  }
+
   let docNumber = svgExtractedDocNumber;
-  let entityName = svgExtractedEntityName || bidderName || 'Bharat Infotech Solutions Ltd.';
+  let entityName = svgExtractedEntityName || bidderName || 'Declared Bidder Enterprise';
   let observations = [
     'Sarvam Indic Sovereign Parser: Verified Ashok Stambh and Ministry header',
     'Bilingual Devanagari & Latin script alignment verified against GeM guidelines',
   ];
   const importantClauses: string[] = [];
 
-  if (typeUpper.includes('UDYAM') || typeUpper.includes('MSME')) {
-    detectedType = 'UDYAM';
-    if (!docNumber) docNumber = 'UDYAM-MH-12-0048921';
+  if (detectedType === 'UDYAM') {
     observations = [
       'Sarvam Indic OCR: Ministry of MSME official header detected',
       'Micro/Small Enterprise classification identified under MSMED Act Section 7(1)',
@@ -144,9 +203,7 @@ export async function extractDocumentWithAI(
     importantClauses.push('Registered under Section 7(1) of MSMED Act 2006 as Small Enterprise');
     importantClauses.push('Primary NIC Code 2620 (Computer & Electronic Hardware Manufacturing)');
     importantClauses.push('Entitled to MSE 15% price purchase preference and tender fee / EMD exemptions under Public Procurement Policy');
-  } else if (typeUpper.includes('GST') || typeUpper.includes('GSTIN')) {
-    detectedType = 'GSTIN';
-    if (!docNumber) docNumber = '27AAACB1234D1Z5';
+  } else if (detectedType === 'GSTIN') {
     observations = [
       'Sarvam Indic OCR: Form GST REG-06 registration certificate recognized',
       'State jurisdiction Maharashtra (Code 27) and regular taxpayer legal constitution confirmed',
@@ -154,18 +211,14 @@ export async function extractDocumentWithAI(
     importantClauses.push('Form GST REG-06 Regular Taxpayer Registration verified under Rule 10(1)');
     importantClauses.push('State Jurisdiction Maharashtra (Code 27) with active e-Invoicing capability');
     importantClauses.push('Regular monthly GSTR-3B return compliance without default or cancellation notices');
-  } else if (typeUpper.includes('PAN') || typeUpper.includes('ITR')) {
-    detectedType = 'PAN';
-    if (!docNumber) docNumber = 'AAACB1234D';
+  } else if (detectedType === 'PAN') {
     observations = [
       'Sarvam Indic OCR: Permanent Account Number layout validated with Income Tax Department CBDT schema',
     ];
     importantClauses.push('10-character corporate PAN format validated under Section 139A of Income Tax Act 1961');
     importantClauses.push('Corporate entity constitution (4th character "C") verified in CBDT master index');
     importantClauses.push('ITR-6 successfully submitted and verified for Assessment Year 2025-26');
-  } else if (typeUpper.includes('INDIA') || typeUpper.includes('MII') || typeUpper.includes('LOCAL')) {
-    detectedType = 'MAKE_IN_INDIA';
-    if (!docNumber) docNumber = 'MII-DECL-2026-894';
+  } else if (detectedType === 'MAKE_IN_INDIA') {
     observations = [
       'Sarvam Indic OCR: Self-declaration on company letterhead verified',
       'Class-I Local Supplier criteria (68%) verified under MII Order',
@@ -173,27 +226,21 @@ export async function extractDocumentWithAI(
     importantClauses.push('Meets Class-I Local Supplier threshold (68% >= 50% required)');
     importantClauses.push('Statutory Auditor certification with valid UDIN reference verified');
     importantClauses.push('Complies with Public Procurement (Preference to Make in India) Order 2017');
-  } else if (typeUpper.includes('OEM') || typeUpper.includes('MAF')) {
-    detectedType = 'OEM_AUTH';
-    if (!docNumber) docNumber = 'MAF-OEM-2026-9921';
+  } else if (detectedType === 'OEM_AUTH') {
     observations = [
       'Sarvam Indic OCR: Manufacturer Authorization Form verified on OEM letterhead',
       'Direct tender-specific authorization confirmed for GeM procurement',
     ];
     importantClauses.push('OEM direct tender-specific authorization confirmed on official letterhead');
     importantClauses.push('Comprehensive 3-year back-to-back manufacturer warranty backed by OEM');
-  } else if (typeUpper.includes('EPFO') || typeUpper.includes('ESIC')) {
-    detectedType = 'EPFO';
-    if (!docNumber) docNumber = 'MH/BAN/0049210/000';
+  } else if (detectedType === 'EPFO') {
     observations = [
       'Sarvam Indic OCR: EPFO electronic challan cum return verified',
       'TRRN transaction code valid',
     ];
     importantClauses.push('Active EPFO establishment registration confirmed under 1952 Act');
     importantClauses.push('Latest monthly ECR return deposit receipt validated via TRRN');
-  } else if (typeUpper.includes('DEBAR') || typeUpper.includes('AFFIDAVIT')) {
-    detectedType = 'DEBARMENT_AFFIDAVIT';
-    if (!docNumber) docNumber = 'NOTARY-AFF-99120';
+  } else if (detectedType === 'DEBARMENT_AFFIDAVIT') {
     observations = [
       'Sarvam Indic OCR: Non-debarment sworn affidavit on stamp paper verified',
       'First Class Magistrate / Notary Public seal verified with 95% confidence',
@@ -201,8 +248,42 @@ export async function extractDocumentWithAI(
     importantClauses.push('Non-judicial stamp paper verified with e-Stamp certificate number');
     importantClauses.push('Unconditional sworn declaration of non-debarment and clean vigilance record');
     importantClauses.push('Attested by First Class Magistrate / Notary Public');
+  } else if (detectedType === 'MCA_COI') {
+    observations = [
+      'Sarvam Indic OCR: Ministry of Corporate Affairs (MCA21) ROC Certificate verified',
+      'Corporate Identification Number (CIN) format and status active',
+    ];
+    importantClauses.push('Incorporated under Companies Act 2013 (18 of 2013)');
+    importantClauses.push('Corporate Identification Number verified in MCA21 ROC master registry');
+  } else if (detectedType === 'DSC_DECLARATION') {
+    observations = [
+      'Sarvam Indic OCR: Controller of Certifying Authorities (CCA) Class 3 DSC declaration verified',
+      'Signatory authorization verified with active OCSP certificate status',
+    ];
+    importantClauses.push('Class 3 Signing and Encryption Digital Signature Certificate verified');
+    importantClauses.push('Validated on CCA Root OCSP responder');
+  } else if (detectedType === 'CA_TURNOVER_CERT') {
+    observations = [
+      'Sarvam Indic OCR: ICAI UDIN Statutory Auditor Turnover Certificate verified',
+      'Audited turnover figures exceed tender minimum criteria',
+    ];
+    importantClauses.push('Statutory Auditor certification validated on ICAI UDIN portal');
+    importantClauses.push('Average annual turnover meets tender minimum threshold');
+  } else if (detectedType === 'BANK_DETAILS') {
+    observations = [
+      'Sarvam Indic OCR: PFMS mandate & cancelled cheque bank account details recognized',
+      'Penny drop electronic validation confirmed match with bidder legal entity',
+    ];
+    importantClauses.push('PFMS mandate & cancelled cheque bank account details verified');
+    importantClauses.push('Penny drop electronic validation confirmed match with bidder legal entity');
+  } else if (detectedType === 'BANK_SOLVENCY') {
+    observations = [
+      'Sarvam Indic OCR: Scheduled commercial bank solvency certificate verified',
+      'Financial creditworthiness confirmed via SFMS gateway reference',
+    ];
+    importantClauses.push('Scheduled commercial bank solvency certificate verified');
+    importantClauses.push('SFMS bank confirmation authenticates creditworthiness');
   } else {
-    if (!docNumber) docNumber = 'REG-' + Math.floor(100000 + Math.random() * 900000);
     importantClauses.push('Statutory compliance certified by authorized signatory for GeM procurement');
   }
 
@@ -319,17 +400,107 @@ export async function queryDepartmentGateway(
   }
 
   const deptName =
-    departmentCode === 'MSME_UDYAM' ? 'Ministry of MSME Udyam Portal' :
-    departmentCode === 'GSTN' ? 'Goods & Services Tax Network (GSTN)' :
-    departmentCode === 'INCOME_TAX_PAN' ? 'Income Tax Department (CBDT)' :
-    departmentCode === 'CPPP_DEBARMENT' ? 'CPPP Central Debarment Watchlist' :
+    departmentCode === 'MSME_UDYAM' || departmentCode === 'UDYAM' ? 'Ministry of MSME Udyam Portal' :
+    departmentCode === 'GSTN' || departmentCode === 'GST' ? 'Goods & Services Tax Network (GSTN)' :
+    departmentCode === 'INCOME_TAX_PAN' || departmentCode === 'PAN' ? 'Income Tax Department (CBDT)' :
+    departmentCode === 'CPPP_DEBARMENT' || departmentCode === 'DEBARMENT_AFFIDAVIT' ? 'CPPP Central Debarment Watchlist' :
+    departmentCode === 'EPFO_ESIC' || departmentCode === 'EPFO' ? "Employees' Provident Fund Organisation (EPFO)" :
     departmentCode === 'MAKE_IN_INDIA' ? 'DPIIT Make In India Portal' :
     departmentCode === 'OEM_AUTH' ? 'OEM Authorization Portal' :
+    departmentCode === 'MCA21_ROC' || departmentCode === 'MCA_COI' ? 'Ministry of Corporate Affairs (MCA21 / ROC)' :
+    departmentCode === 'CCA_DSC' || departmentCode === 'DSC_DECLARATION' ? 'Controller of Certifying Authorities (CCA)' :
+    departmentCode === 'ICAI_UDIN' || departmentCode === 'CA_TURNOVER_CERT' ? 'Institute of Chartered Accountants of India (ICAI UDIN)' :
+    departmentCode === 'PFMS_BANK' || departmentCode === 'BANK_DETAILS' ? 'Public Financial Management System (PFMS)' :
+    departmentCode === 'BIS_REGISTRY' || departmentCode === 'BIS_CERT' ? 'Bureau of Indian Standards (BIS Manakonline)' :
+    departmentCode === 'ISO_QCI' || departmentCode === 'QUALITY_CERT_ISO' ? 'Quality Council of India (QCI / NABCB)' :
+    departmentCode === 'BANK_SOLVENCY_BG' || departmentCode === 'BANK_SOLVENCY' || departmentCode === 'EMD_PROOF' ? 'Structured Financial Messaging System (SFMS)' :
+    departmentCode === 'GEM_WORK_ORDER' || departmentCode === 'EXPERIENCE_CERT' ? 'GeM Contract & Past Performance Registry' :
     'Statutory National Registry';
+
+  // Client-side simulation of specific test cases (Gamma debarred / cancelled / expired)
+  const isGamma = (entityName || '').toUpperCase().includes('GAMMA') || cleanId.includes('GAMMA') || cleanId.includes('3003');
+
+  if (isGamma && (departmentCode === 'GSTN' || departmentCode === 'GST')) {
+    return {
+      departmentCode,
+      departmentName: deptName,
+      queryEndpoint: 'https://services.gst.gov.in/api/taxpayer/verify',
+      queriedIdentifier: cleanId,
+      queryTimestamp: new Date().toISOString(),
+      status: 'SUSPENDED',
+      verifiedAttributes: { gstin: cleanId, status: 'CANCELLED', cancellationDate: '2025-11-30' },
+      extractedTextSent: textSnippet,
+      databaseRecord: { gstin: cleanId, status: 'CANCELLED', cancellationDate: '2025-11-30' },
+      fieldComparisons: [
+        {
+          field: 'GSTIN Registration Status',
+          extractedFromDoc: 'Active Claimed',
+          databaseMasterValue: 'CANCELLED (Effective 30-Nov-2025)',
+          match: false,
+          notes: 'CRITICAL: GST registration was cancelled by Tax Authority on 2025-11-30',
+        },
+      ],
+      apiReferenceId: `TX-GST-${Date.now().toString(36).toUpperCase()}`,
+      statusMessage: 'CRITICAL: GST registration is CANCELLED in GSTN master records.',
+      verifiedAt: new Date().toLocaleTimeString(),
+    };
+  }
+
+  if (isGamma && (departmentCode === 'CPPP_DEBARMENT' || departmentCode === 'DEBARMENT_AFFIDAVIT')) {
+    return {
+      departmentCode,
+      departmentName: deptName,
+      queryEndpoint: 'https://eprocure.gov.in/cppp/api/debarred-entities',
+      queriedIdentifier: cleanId,
+      queryTimestamp: new Date().toISOString(),
+      status: 'DEBARRED',
+      verifiedAttributes: { isDebarred: true, debarringAuthority: 'Ministry of Railways / CPWD' },
+      extractedTextSent: textSnippet,
+      databaseRecord: { isDebarred: true, debarmentPeriod: '2025-01-01 to 2027-12-31' },
+      fieldComparisons: [
+        {
+          field: 'Central Debarment Registry Match',
+          extractedFromDoc: 'Claimed Non-Debarred',
+          databaseMasterValue: 'LISTED ON CENTRAL DEBARMENT REGISTER',
+          match: false,
+          notes: 'CRITICAL: Entity found on National Procurement Blacklist',
+        },
+      ],
+      apiReferenceId: `TX-DEB-${Date.now().toString(36).toUpperCase()}`,
+      statusMessage: 'CRITICAL: Entity is listed on the Central Debarment / Blacklist register.',
+      verifiedAt: new Date().toLocaleTimeString(),
+    };
+  }
+
+  if (isGamma && (departmentCode === 'CCA_DSC' || departmentCode === 'DSC_DECLARATION')) {
+    return {
+      departmentCode,
+      departmentName: deptName,
+      queryEndpoint: 'https://cca.gov.in/api/v1/verify-dsc',
+      queriedIdentifier: cleanId,
+      queryTimestamp: new Date().toISOString(),
+      status: 'SUSPENDED',
+      verifiedAttributes: { status: 'EXPIRED', validUntil: '2026-06-30' },
+      extractedTextSent: textSnippet,
+      databaseRecord: { status: 'EXPIRED', validUntil: '2026-06-30' },
+      fieldComparisons: [
+        {
+          field: 'DSC Validity',
+          extractedFromDoc: 'Valid Claimed',
+          databaseMasterValue: 'EXPIRED (Ended 30-Jun-2026)',
+          match: false,
+          notes: 'Digital signature certificate has expired',
+        },
+      ],
+      apiReferenceId: `TX-DSC-${Date.now().toString(36).toUpperCase()}`,
+      statusMessage: 'CRITICAL: Digital signature certificate has EXPIRED.',
+      verifiedAt: new Date().toLocaleTimeString(),
+    };
+  }
 
   const defaultDbRecord = {
     identifier: cleanId,
-    legalName: entityName || 'Bharat Infotech Solutions Ltd.',
+    legalName: entityName || 'Acme Technology Solutions Private Limited',
     status: 'ACTIVE & COMPLIANT',
     verificationDate: new Date().toISOString().split('T')[0],
   };
@@ -354,8 +525,8 @@ export async function queryDepartmentGateway(
       },
       {
         field: 'Legal Entity Name',
-        extractedFromDoc: entityName || 'Bharat Infotech Solutions Ltd.',
-        databaseMasterValue: entityName || 'Bharat Infotech Solutions Ltd.',
+        extractedFromDoc: entityName || 'Acme Technology Solutions Private Limited',
+        databaseMasterValue: entityName || 'Acme Technology Solutions Private Limited',
         match: true,
         notes: 'Matches registered corporate title in department records',
       },
@@ -429,3 +600,54 @@ export async function postAuditLog(log: {
   }
   return null;
 }
+
+export async function fetchMockSubmissions(): Promise<any[]> {
+  try {
+    const res = await fetch('/api/mock-submissions');
+    if (res.ok) {
+      const data = await res.json();
+      return data.submissions || [];
+    }
+  } catch {
+    // Non-blocking fallback
+  }
+  return [];
+}
+
+export async function fetchMockSubmissionById(bidderId: string): Promise<any | null> {
+  try {
+    const res = await fetch(`/api/mock-submissions/${encodeURIComponent(bidderId)}`);
+    if (res.ok) {
+      const data = await res.json();
+      return data.submission || null;
+    }
+  } catch {
+    // Non-blocking fallback
+  }
+  return null;
+}
+
+export async function fetchOfficerApiRegistry(): Promise<any> {
+  try {
+    const res = await fetch('/api/officer/api-data-registry');
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch {
+    // Non-blocking fallback
+  }
+  return null;
+}
+
+export async function testSarvamAiStatus(): Promise<any> {
+  try {
+    const res = await fetch('/api/officer/test-sarvam-ai', { method: 'POST' });
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch (err: any) {
+    return { success: false, message: err?.message || 'Failed to ping Sarvam AI' };
+  }
+  return { success: false, message: 'Server returned error' };
+}
+
